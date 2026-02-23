@@ -1,0 +1,8 @@
+subscription MessageAdded($projectId: ID!) {
+  messageAdded(projectId: $projectId) {
+    id
+    content
+    role
+    createdAt
+  }
+}

@@ -1,9 +1,15 @@
-from ariadne import MutationType, ObjectType, QueryType
+import asyncio
 
+from ariadne import MutationType, ObjectType, QueryType, SubscriptionType
+
+from .database import SessionLocal
+from .llm import get_ai_response
 from .models import Message, Project, User
+from .pubsub import pubsub
 
 query = QueryType()
 mutation = MutationType()
+subscription = SubscriptionType()
 project_type = ObjectType("Project")
 message_type = ObjectType("Message")
 
@@ -53,12 +59,54 @@ def resolve_create_project(_, info, name):
 
 
 @mutation.field("sendMessage")
-def resolve_send_message(_, info, projectId, content):
+async def resolve_send_message(_, info, projectId, content):
     db = info.context["db"]
     message = Message(project_id=int(projectId), content=content, role="user")
     db.add(message)
     db.commit()
     db.refresh(message)
+
+    asyncio.create_task(_generate_assistant_response(int(projectId)))
+
+    return message
+
+
+async def _generate_assistant_response(project_id: int):
+    db = SessionLocal()
+    try:
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            return
+
+        messages = [
+            {"role": msg.role, "content": msg.content}
+            for msg in project.messages
+        ]
+
+        content = await get_ai_response(messages)
+
+        assistant_msg = Message(project_id=project_id, content=content, role="assistant")
+        db.add(assistant_msg)
+        db.commit()
+        db.refresh(assistant_msg)
+
+        await pubsub.publish(f"project:{project_id}", assistant_msg)
+    except Exception as e:
+        print(f"Error generating assistant response: {e}")
+    finally:
+        db.close()
+
+
+# --- Subscriptions ---
+
+@subscription.source("messageAdded")
+async def message_added_source(obj, info, projectId):
+    async for message in pubsub.subscribe(f"project:{projectId}"):
+        yield message
+
+
+@subscription.field("messageAdded")
+def message_added_resolver(message, info, projectId):
     return message
 
 

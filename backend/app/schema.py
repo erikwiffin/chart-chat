@@ -12,6 +12,10 @@ type_defs = """
         sendMessage(projectId: ID!, content: String!): Message!
     }
 
+    type Subscription {
+        messageAdded(projectId: ID!): Message!
+    }
+
     type User {
         id: ID!
         name: String!

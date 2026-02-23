@@ -1,9 +1,11 @@
 import { useMutation, useQuery } from "@apollo/client/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { GetProjectMessagesQuery } from "../../__generated__/graphql";
 import {
   CreateProjectDocument,
   GetProjectMessagesDocument,
   GetProjectsDocument,
+  MessageAddedDocument,
   SendMessageDocument,
 } from "../../__generated__/graphql";
 import { ChatPanelView } from "./ChatPanelView";
@@ -13,10 +15,29 @@ export function ChatPanel() {
   const [input, setInput] = useState("");
 
   const { data: projectsData } = useQuery(GetProjectsDocument);
-  const { data: messagesData } = useQuery(GetProjectMessagesDocument, {
+  const { data: messagesData, subscribeToMore } = useQuery(GetProjectMessagesDocument, {
     variables: { projectId: selectedProjectId ?? "" },
     skip: !selectedProjectId,
   });
+
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    return subscribeToMore({
+      document: MessageAddedDocument,
+      variables: { projectId: selectedProjectId },
+      updateQuery: (prev, { subscriptionData }): GetProjectMessagesQuery => {
+        const newMessage = subscriptionData.data?.messageAdded;
+        if (!newMessage || !prev.project) return prev as GetProjectMessagesQuery;
+        return {
+          ...prev,
+          project: {
+            ...prev.project,
+            messages: [...(prev.project.messages ?? []), newMessage],
+          },
+        } as GetProjectMessagesQuery;
+      },
+    });
+  }, [selectedProjectId, subscribeToMore]);
 
   const [createProject] = useMutation(CreateProjectDocument, {
     refetchQueries: [{ query: GetProjectsDocument }],
