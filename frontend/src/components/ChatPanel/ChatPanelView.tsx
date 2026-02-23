@@ -1,3 +1,5 @@
+import ReactMarkdown from 'react-markdown';
+
 type Message = { id: string; content: string; role: string };
 
 type Props = {
@@ -51,7 +53,9 @@ export function ChatPanelView({
               key={msg.id}
               className={`chat ${msg.role === "user" ? "chat-end" : "chat-start"}`}
             >
-              <div className="chat-bubble">{msg.content}</div>
+              <div className="chat-bubble">
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
             </div>
           ))
         )}
