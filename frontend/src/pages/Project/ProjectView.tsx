@@ -9,6 +9,11 @@ type Props = {
   projectId: string;
   projectName: string;
   onHome: () => void;
+  isDragging: boolean;
+  uploadStatus: "idle" | "success" | "error";
+  onDragOver: (e: React.DragEvent) => void;
+  onDragLeave: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent) => void;
 };
 
 export function ProjectView({
@@ -18,9 +23,40 @@ export function ProjectView({
   projectId,
   projectName,
   onHome,
+  isDragging,
+  uploadStatus,
+  onDragOver,
+  onDragLeave,
+  onDrop,
 }: Props) {
   return (
-    <div ref={containerRef} className="flex h-screen bg-base-100">
+    <div
+      ref={containerRef}
+      className="flex h-screen bg-base-100 relative"
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      {isDragging && (
+        <div className="absolute inset-0 z-50 bg-base-100/80 flex items-center justify-center pointer-events-none">
+          <div className="border-4 border-dashed border-primary rounded-xl p-16 text-primary text-xl font-semibold">
+            Drop CSV to upload
+          </div>
+        </div>
+      )}
+
+      {uploadStatus === "success" && (
+        <div className="absolute top-4 right-4 z-50 alert alert-success shadow-lg w-auto">
+          <span>Data source added!</span>
+        </div>
+      )}
+
+      {uploadStatus === "error" && (
+        <div className="absolute top-4 right-4 z-50 alert alert-error shadow-lg w-auto">
+          <span>Upload failed. Please try again.</span>
+        </div>
+      )}
+
       <div style={{ width: `${leftPercent}%` }} className="h-full overflow-hidden">
         <ChatPanel projectId={projectId} projectName={projectName} onHome={onHome} />
       </div>
@@ -31,7 +67,7 @@ export function ProjectView({
       />
 
       <div style={{ width: `${100 - leftPercent}%` }} className="h-full overflow-hidden">
-        <MainPanel />
+        <MainPanel projectId={projectId} />
       </div>
     </div>
   );

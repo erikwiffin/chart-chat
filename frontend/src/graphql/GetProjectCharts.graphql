@@ -1,0 +1,10 @@
+query GetProjectCharts($id: ID!) {
+  project(id: $id) {
+    charts {
+      id
+      title
+      spec
+      createdAt
+    }
+  }
+}

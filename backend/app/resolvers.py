@@ -1,10 +1,11 @@
 import asyncio
+import json
 
 from ariadne import MutationType, ObjectType, QueryType, SubscriptionType
 
 from .database import SessionLocal
 from .llm import generate_project_name, get_ai_response
-from .models import Message, Project, User
+from .models import Chart, DataSource, Message, Project, User
 from .pubsub import pubsub
 
 query = QueryType()
@@ -12,6 +13,8 @@ mutation = MutationType()
 subscription = SubscriptionType()
 project_type = ObjectType("Project")
 message_type = ObjectType("Message")
+data_source_type = ObjectType("DataSource")
+chart_type = ObjectType("Chart")
 
 
 # --- Queries ---
@@ -119,7 +122,37 @@ async def _generate_assistant_response(project_id: int):
             for msg in project.messages
         ]
 
-        content = await get_ai_response(messages)
+        # Prepend data source context if any exist
+        data_sources = (
+            db.query(DataSource).filter(DataSource.project_id == project_id).all()
+        )
+        if data_sources:
+            context_lines = ["The following data sources are available:\n"]
+            for ds in data_sources:
+                context_lines.append(f"File: {ds.name}")
+                context_lines.append(f"Columns: {', '.join(ds.columns)}")
+                if ds.sample_rows:
+                    context_lines.append(
+                        f"Sample rows (first {len(ds.sample_rows)}):\n"
+                        + json.dumps(ds.sample_rows, indent=2)
+                    )
+                context_lines.append("")
+            system_content = "\n".join(context_lines)
+            messages = [{"role": "system", "content": system_content}] + messages
+
+        content, created_charts = await get_ai_response(messages)
+
+        # Save and publish charts
+        for chart_data in created_charts:
+            chart = Chart(
+                project_id=project_id,
+                title=chart_data["title"],
+                spec=chart_data["spec"],
+            )
+            db.add(chart)
+            db.commit()
+            db.refresh(chart)
+            await pubsub.publish(f"chart:{project_id}", chart)
 
         assistant_msg = Message(project_id=project_id, content=content, role="assistant")
         db.add(assistant_msg)
@@ -157,6 +190,17 @@ def project_name_updated_resolver(project, info, projectId):
     return project
 
 
+@subscription.source("chartAdded")
+async def chart_added_source(obj, info, projectId):
+    async for chart in pubsub.subscribe(f"chart:{projectId}"):
+        yield chart
+
+
+@subscription.field("chartAdded")
+def chart_added_resolver(chart, info, projectId):
+    return chart
+
+
 # --- Field resolvers (camelCase mapping) ---
 
 @project_type.field("createdAt")
@@ -164,6 +208,41 @@ def resolve_project_created_at(obj, *_):
     return obj.created_at.isoformat()
 
 
+@project_type.field("dataSources")
+def resolve_project_data_sources(obj, *_):
+    return obj.data_sources
+
+
+@project_type.field("charts")
+def resolve_project_charts(obj, *_):
+    return obj.charts
+
+
 @message_type.field("createdAt")
 def resolve_message_created_at(obj, *_):
+    return obj.created_at.isoformat()
+
+
+@data_source_type.field("sourceType")
+def resolve_data_source_source_type(obj, *_):
+    return obj.source_type
+
+
+@data_source_type.field("rowCount")
+def resolve_data_source_row_count(obj, *_):
+    return obj.row_count
+
+
+@data_source_type.field("createdAt")
+def resolve_data_source_created_at(obj, *_):
+    return obj.created_at.isoformat()
+
+
+@chart_type.field("spec")
+def resolve_chart_spec(obj, *_):
+    return json.dumps(obj.spec)
+
+
+@chart_type.field("createdAt")
+def resolve_chart_created_at(obj, *_):
     return obj.created_at.isoformat()

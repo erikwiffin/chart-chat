@@ -1,9 +1,12 @@
+import { useApolloClient } from "@apollo/client/react";
 import { useCallback, useRef, useState } from "react";
 import { ProjectView } from "./ProjectView";
 
 const DEFAULT_LEFT_PERCENT = 33;
 const MIN_LEFT_PERCENT = 15;
 const MAX_LEFT_PERCENT = 80;
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 type Props = {
   projectId: string;
@@ -14,6 +17,9 @@ type Props = {
 export function Project({ projectId, projectName, onHome }: Props) {
   const [leftPercent, setLeftPercent] = useState(DEFAULT_LEFT_PERCENT);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "success" | "error">("idle");
+  const client = useApolloClient();
 
   const onHandleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -34,6 +40,56 @@ export function Project({ projectId, projectName, onHome }: Props) {
     window.addEventListener("mouseup", onMouseUp);
   }, []);
 
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    // Only clear if leaving the container entirely
+    if (!containerRef.current?.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+
+      if (!file.name.toLowerCase().endsWith(".csv")) {
+        setUploadStatus("error");
+        setTimeout(() => setUploadStatus("idle"), 3000);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/projects/${projectId}/upload`,
+          { method: "POST", body: formData }
+        );
+
+        if (!response.ok) {
+          throw new Error("Upload failed");
+        }
+
+        setUploadStatus("success");
+        setTimeout(() => setUploadStatus("idle"), 3000);
+        await client.refetchQueries({ include: ["GetProjectDataSources"] });
+      } catch {
+        setUploadStatus("error");
+        setTimeout(() => setUploadStatus("idle"), 3000);
+      }
+    },
+    [projectId, client]
+  );
+
   return (
     <ProjectView
       containerRef={containerRef}
@@ -42,6 +98,11 @@ export function Project({ projectId, projectName, onHome }: Props) {
       projectId={projectId}
       projectName={projectName}
       onHome={onHome}
+      isDragging={isDragging}
+      uploadStatus={uploadStatus}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     />
   );
 }

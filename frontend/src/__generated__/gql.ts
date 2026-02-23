@@ -14,8 +14,11 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
+    "subscription ChartAdded($projectId: ID!) {\n  chartAdded(projectId: $projectId) {\n    id\n    title\n    spec\n    createdAt\n  }\n}": typeof types.ChartAddedDocument,
     "mutation CreateProject($name: String!) {\n  createProject(name: $name) {\n    id\n    name\n  }\n}": typeof types.CreateProjectDocument,
     "mutation CreateProjectFromPrompt($content: String!) {\n  createProjectFromPrompt(content: $content) {\n    id\n    name\n  }\n}": typeof types.CreateProjectFromPromptDocument,
+    "query GetProjectCharts($id: ID!) {\n  project(id: $id) {\n    charts {\n      id\n      title\n      spec\n      createdAt\n    }\n  }\n}": typeof types.GetProjectChartsDocument,
+    "query GetProjectDataSources($id: ID!) {\n  project(id: $id) {\n    dataSources {\n      id\n      name\n      sourceType\n      columns\n      rowCount\n      createdAt\n    }\n  }\n}": typeof types.GetProjectDataSourcesDocument,
     "query GetProjectMessages($projectId: ID!) {\n  project(id: $projectId) {\n    id\n    messages {\n      id\n      content\n      role\n      createdAt\n    }\n  }\n}": typeof types.GetProjectMessagesDocument,
     "query GetProjects {\n  projects {\n    id\n    name\n  }\n}": typeof types.GetProjectsDocument,
     "subscription MessageAdded($projectId: ID!) {\n  messageAdded(projectId: $projectId) {\n    id\n    content\n    role\n    createdAt\n  }\n}": typeof types.MessageAddedDocument,
@@ -23,8 +26,11 @@ type Documents = {
     "mutation SendMessage($projectId: ID!, $content: String!) {\n  sendMessage(projectId: $projectId, content: $content) {\n    id\n    content\n    role\n    createdAt\n  }\n}": typeof types.SendMessageDocument,
 };
 const documents: Documents = {
+    "subscription ChartAdded($projectId: ID!) {\n  chartAdded(projectId: $projectId) {\n    id\n    title\n    spec\n    createdAt\n  }\n}": types.ChartAddedDocument,
     "mutation CreateProject($name: String!) {\n  createProject(name: $name) {\n    id\n    name\n  }\n}": types.CreateProjectDocument,
     "mutation CreateProjectFromPrompt($content: String!) {\n  createProjectFromPrompt(content: $content) {\n    id\n    name\n  }\n}": types.CreateProjectFromPromptDocument,
+    "query GetProjectCharts($id: ID!) {\n  project(id: $id) {\n    charts {\n      id\n      title\n      spec\n      createdAt\n    }\n  }\n}": types.GetProjectChartsDocument,
+    "query GetProjectDataSources($id: ID!) {\n  project(id: $id) {\n    dataSources {\n      id\n      name\n      sourceType\n      columns\n      rowCount\n      createdAt\n    }\n  }\n}": types.GetProjectDataSourcesDocument,
     "query GetProjectMessages($projectId: ID!) {\n  project(id: $projectId) {\n    id\n    messages {\n      id\n      content\n      role\n      createdAt\n    }\n  }\n}": types.GetProjectMessagesDocument,
     "query GetProjects {\n  projects {\n    id\n    name\n  }\n}": types.GetProjectsDocument,
     "subscription MessageAdded($projectId: ID!) {\n  messageAdded(projectId: $projectId) {\n    id\n    content\n    role\n    createdAt\n  }\n}": types.MessageAddedDocument,
@@ -49,11 +55,23 @@ export function graphql(source: string): unknown;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "subscription ChartAdded($projectId: ID!) {\n  chartAdded(projectId: $projectId) {\n    id\n    title\n    spec\n    createdAt\n  }\n}"): (typeof documents)["subscription ChartAdded($projectId: ID!) {\n  chartAdded(projectId: $projectId) {\n    id\n    title\n    spec\n    createdAt\n  }\n}"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "mutation CreateProject($name: String!) {\n  createProject(name: $name) {\n    id\n    name\n  }\n}"): (typeof documents)["mutation CreateProject($name: String!) {\n  createProject(name: $name) {\n    id\n    name\n  }\n}"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "mutation CreateProjectFromPrompt($content: String!) {\n  createProjectFromPrompt(content: $content) {\n    id\n    name\n  }\n}"): (typeof documents)["mutation CreateProjectFromPrompt($content: String!) {\n  createProjectFromPrompt(content: $content) {\n    id\n    name\n  }\n}"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "query GetProjectCharts($id: ID!) {\n  project(id: $id) {\n    charts {\n      id\n      title\n      spec\n      createdAt\n    }\n  }\n}"): (typeof documents)["query GetProjectCharts($id: ID!) {\n  project(id: $id) {\n    charts {\n      id\n      title\n      spec\n      createdAt\n    }\n  }\n}"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "query GetProjectDataSources($id: ID!) {\n  project(id: $id) {\n    dataSources {\n      id\n      name\n      sourceType\n      columns\n      rowCount\n      createdAt\n    }\n  }\n}"): (typeof documents)["query GetProjectDataSources($id: ID!) {\n  project(id: $id) {\n    dataSources {\n      id\n      name\n      sourceType\n      columns\n      rowCount\n      createdAt\n    }\n  }\n}"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

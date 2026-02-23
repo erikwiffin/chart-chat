@@ -1,0 +1,12 @@
+query GetProjectDataSources($id: ID!) {
+  project(id: $id) {
+    dataSources {
+      id
+      name
+      sourceType
+      columns
+      rowCount
+      createdAt
+    }
+  }
+}

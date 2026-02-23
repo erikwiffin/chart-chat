@@ -16,6 +16,7 @@ type_defs = """
     type Subscription {
         messageAdded(projectId: ID!): Message!
         projectNameUpdated(projectId: ID!): Project!
+        chartAdded(projectId: ID!): Chart!
     }
 
     type User {
@@ -26,8 +27,11 @@ type_defs = """
 
     type Project {
         id: ID!
+        uuid: String!
         name: String!
         messages: [Message!]!
+        dataSources: [DataSource!]!
+        charts: [Chart!]!
         createdAt: String!
     }
 
@@ -40,6 +44,22 @@ type_defs = """
         id: ID!
         content: String!
         role: MessageRole!
+        createdAt: String!
+    }
+
+    type DataSource {
+        id: ID!
+        name: String!
+        sourceType: String!
+        columns: [String!]!
+        rowCount: Int!
+        createdAt: String!
+    }
+
+    type Chart {
+        id: ID!
+        title: String!
+        spec: String!
         createdAt: String!
     }
 """
