@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { AppTab } from "./tabs";
 
@@ -20,6 +20,8 @@ export function MainPanelView({
   renderContent,
 }: Props) {
   const dragIndexRef = useRef<number | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const activeTab = tabs.find((t) => t.id === activeTabId);
 
   return (
@@ -29,7 +31,7 @@ export function MainPanelView({
           <a
             key={tab.id}
             role="tab"
-            className={`tab group ${activeTabId === tab.id ? "tab-active" : ""}`}
+            className={`tab group ${activeTabId === tab.id ? "tab-active" : ""} ${dragIndex === index ? "opacity-40" : ""} ${hoverIndex === index && dragIndex !== index ? "border-l-[3px] border-primary" : ""}`}
             onClick={() => onTabChange(tab.id)}
             draggable={tab.id !== "overview"}
             onDragStart={
@@ -37,16 +39,20 @@ export function MainPanelView({
                 ? (e) => {
                     e.stopPropagation();
                     dragIndexRef.current = index;
+                    setDragIndex(index);
                   }
                 : undefined
             }
             onDragEnd={(e) => {
               e.stopPropagation();
               dragIndexRef.current = null;
+              setDragIndex(null);
+              setHoverIndex(null);
             }}
             onDragOver={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              setHoverIndex(index);
             }}
             onDrop={(e) => {
               e.stopPropagation();
@@ -75,7 +81,7 @@ export function MainPanelView({
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-6 -mt-px border-t border-base-300">
         {activeTab ? renderContent(activeTab) : null}
       </div>
     </div>

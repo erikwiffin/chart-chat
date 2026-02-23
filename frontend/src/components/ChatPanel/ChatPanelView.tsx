@@ -63,7 +63,7 @@ export function ChatPanelView({
 
       <div className="p-4 border-t border-base-300">
         <textarea
-          className="textarea textarea-bordered w-full resize-none"
+          className="textarea w-full resize-none"
           placeholder="Type a message… (Enter to send, Shift+Enter for newline)"
           rows={3}
           value={input}

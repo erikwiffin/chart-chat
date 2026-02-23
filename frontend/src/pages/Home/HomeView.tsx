@@ -23,7 +23,7 @@ export function HomeView({
         <h1 className="text-3xl font-bold text-center text-base-content">Chart Chat</h1>
 
         <textarea
-          className="textarea textarea-bordered w-full resize-none text-base"
+          className="textarea w-full resize-none text-base"
           placeholder="What do you want to explore?"
           rows={4}
           value={input}

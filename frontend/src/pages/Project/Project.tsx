@@ -41,6 +41,7 @@ export function Project({ projectId, projectName, onHome }: Props) {
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes("Files")) return;
     e.preventDefault();
     setIsDragging(true);
   }, []);
