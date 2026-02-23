@@ -1,9 +1,11 @@
-import json
 import os
+from typing import Annotated
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, MessagesState, StateGraph
+from langgraph.prebuilt import ToolNode
 
 
 def _get_llm() -> ChatOpenAI:
@@ -14,55 +16,21 @@ def _get_llm() -> ChatOpenAI:
     )
 
 
-_CREATE_CHART_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "create_chart",
-        "description": (
-            "Create a Vega-Lite chart from data. Call this when the user asks to "
-            "visualize data or create a chart."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "title": {
-                    "type": "string",
-                    "description": "A descriptive title for the chart",
-                },
-                "spec": {
-                    "type": "object",
-                    "description": "A valid Vega-Lite specification object",
-                },
-            },
-            "required": ["title", "spec"],
-        },
-    },
-}
-
-
 def _build_graph(collected_charts: list[dict]):
-    llm = _get_llm().bind_tools([_CREATE_CHART_TOOL])
+    @tool
+    def create_chart(
+        title: Annotated[str, "A descriptive title for the chart"],
+        spec: Annotated[dict, "A valid Vega-Lite specification object"],
+    ) -> str:
+        """Create a Vega-Lite chart from data. Call this when the user asks to visualize data or create a chart."""
+        collected_charts.append({"title": title, "spec": spec})
+        return f"Chart '{title}' created."
+
+    llm = _get_llm().bind_tools([create_chart])
 
     def chat_node(state: MessagesState) -> dict:
         response = llm.invoke(state["messages"])
         return {"messages": [response]}
-
-    def tool_node(state: MessagesState) -> dict:
-        last = state["messages"][-1]
-        tool_results = []
-        for call in last.tool_calls:
-            if call["name"] == "create_chart":
-                args = call["args"]
-                collected_charts.append(
-                    {"title": args["title"], "spec": args["spec"]}
-                )
-                tool_results.append(
-                    ToolMessage(
-                        content=f"Chart '{args['title']}' created.",
-                        tool_call_id=call["id"],
-                    )
-                )
-        return {"messages": tool_results}
 
     def should_continue(state: MessagesState) -> str:
         last = state["messages"][-1]
@@ -72,7 +40,7 @@ def _build_graph(collected_charts: list[dict]):
 
     builder = StateGraph(MessagesState)
     builder.add_node("chat", chat_node)
-    builder.add_node("tools", tool_node)
+    builder.add_node("tools", ToolNode([create_chart]))
     builder.set_entry_point("chat")
     builder.add_conditional_edges("chat", should_continue)
     builder.add_edge("tools", "chat")
