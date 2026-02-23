@@ -1,10 +1,6 @@
-from dotenv import load_dotenv
-
-load_dotenv()
-
 import os
 
-from ariadne import make_executable_schema
+from ariadne import load_schema_from_path, make_executable_schema
 from ariadne.asgi import GraphQL
 from ariadne.asgi.handlers import GraphQLTransportWSHandler
 from fastapi import FastAPI, HTTPException, UploadFile
@@ -21,10 +17,11 @@ from .resolvers import (
     query,
     subscription,
 )
-from .schema import type_defs
 from .storage import get_data_source_preview, parse_csv, save_upload
 
 Base.metadata.create_all(bind=engine)
+
+type_defs = load_schema_from_path(os.path.join(os.path.dirname(__file__), "schema.graphql"))
 
 schema = make_executable_schema(
     type_defs,

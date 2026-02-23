@@ -20,7 +20,7 @@ npm run codegen    # Regenerate TypeScript types from GraphQL schema
 ### Backend (`/backend`)
 
 ```bash
-uv run uvicorn app.main:app --reload   # Start dev server at http://localhost:8000
+uv run uvicorn main:app --reload   # Start dev server at http://localhost:8000
 ```
 
 To add a dependency: `uv add <package>`
