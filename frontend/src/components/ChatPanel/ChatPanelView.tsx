@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 type Message = { id: string; content: string; role: string };
@@ -19,6 +20,12 @@ export function ChatPanelView({
   onInputChange,
   onSend,
 }: Props) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-3 border-b border-base-300 flex items-center gap-2">
@@ -59,6 +66,7 @@ export function ChatPanelView({
             </div>
           ))
         )}
+        <div ref={messagesEndRef} />
       </div>
 
       <div className="p-4 border-t border-base-300">
