@@ -1,0 +1,8 @@
+mutation SendMessage($projectId: ID!, $content: String!) {
+  sendMessage(projectId: $projectId, content: $content) {
+    id
+    content
+    role
+    createdAt
+  }
+}

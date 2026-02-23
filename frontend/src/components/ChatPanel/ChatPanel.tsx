@@ -1,34 +1,35 @@
 import { useMutation, useQuery } from "@apollo/client/react";
 import { useState } from "react";
-import { CREATE_PROJECT, SEND_MESSAGE } from "../../graphql/mutations";
-import { GET_PROJECTS, GET_PROJECT_MESSAGES } from "../../graphql/queries";
+import {
+  CreateProjectDocument,
+  GetProjectMessagesDocument,
+  GetProjectsDocument,
+  SendMessageDocument,
+} from "../../__generated__/graphql";
 import { ChatPanelView } from "./ChatPanelView";
-
-type Project = { id: string; name: string };
-type Message = { id: string; content: string; role: string; createdAt: string };
 
 export function ChatPanel() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [input, setInput] = useState("");
 
-  const { data: projectsData } = useQuery<{ projects: Project[] }>(GET_PROJECTS);
-  const { data: messagesData } = useQuery<{ project: { id: string; messages: Message[] } | null }>(GET_PROJECT_MESSAGES, {
-    variables: { projectId: selectedProjectId },
+  const { data: projectsData } = useQuery(GetProjectsDocument);
+  const { data: messagesData } = useQuery(GetProjectMessagesDocument, {
+    variables: { projectId: selectedProjectId ?? "" },
     skip: !selectedProjectId,
   });
 
-  const [createProject] = useMutation<{ createProject: Project }>(CREATE_PROJECT, {
-    refetchQueries: [{ query: GET_PROJECTS }],
+  const [createProject] = useMutation(CreateProjectDocument, {
+    refetchQueries: [{ query: GetProjectsDocument }],
   });
 
-  const [sendMessage] = useMutation(SEND_MESSAGE, {
+  const [sendMessage] = useMutation(SendMessageDocument, {
     refetchQueries: [
-      { query: GET_PROJECT_MESSAGES, variables: { projectId: selectedProjectId } },
+      { query: GetProjectMessagesDocument, variables: { projectId: selectedProjectId } },
     ],
   });
 
-  const projects: Project[] = projectsData?.projects ?? [];
-  const messages: Message[] = messagesData?.project?.messages ?? [];
+  const projects = projectsData?.projects ?? [];
+  const messages = messagesData?.project?.messages ?? [];
 
   const handleSend = async () => {
     if (!input.trim() || !selectedProjectId) return;

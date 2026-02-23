@@ -1,0 +1,11 @@
+query GetProjectMessages($projectId: ID!) {
+  project(id: $projectId) {
+    id
+    messages {
+      id
+      content
+      role
+      createdAt
+    }
+  }
+}
