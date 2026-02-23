@@ -3,7 +3,7 @@ import asyncio
 from ariadne import MutationType, ObjectType, QueryType, SubscriptionType
 
 from .database import SessionLocal
-from .llm import get_ai_response
+from .llm import generate_project_name, get_ai_response
 from .models import Message, Project, User
 from .pubsub import pubsub
 
@@ -58,6 +58,25 @@ def resolve_create_project(_, info, name):
     return project
 
 
+@mutation.field("createProjectFromPrompt")
+async def resolve_create_project_from_prompt(_, info, content):
+    db = info.context["db"]
+    project = Project(name="")
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+
+    message = Message(project_id=project.id, content=content, role="user")
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+
+    asyncio.create_task(_generate_assistant_response(project.id))
+    asyncio.create_task(_generate_and_update_project_name(project.id, content))
+
+    return project
+
+
 @mutation.field("sendMessage")
 async def resolve_send_message(_, info, projectId, content):
     db = info.context["db"]
@@ -69,6 +88,23 @@ async def resolve_send_message(_, info, projectId, content):
     asyncio.create_task(_generate_assistant_response(int(projectId)))
 
     return message
+
+
+async def _generate_and_update_project_name(project_id: int, prompt: str):
+    db = SessionLocal()
+    try:
+        name = await generate_project_name(prompt)
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            return
+        project.name = name
+        db.commit()
+        db.refresh(project)
+        await pubsub.publish(f"project_name:{project_id}", project)
+    except Exception as e:
+        print(f"Error generating project name: {e}")
+    finally:
+        db.close()
 
 
 async def _generate_assistant_response(project_id: int):
@@ -108,6 +144,17 @@ async def message_added_source(obj, info, projectId):
 @subscription.field("messageAdded")
 def message_added_resolver(message, info, projectId):
     return message
+
+
+@subscription.source("projectNameUpdated")
+async def project_name_updated_source(obj, info, projectId):
+    async for project in pubsub.subscribe(f"project_name:{projectId}"):
+        yield project
+
+
+@subscription.field("projectNameUpdated")
+def project_name_updated_resolver(project, info, projectId):
+    return project
 
 
 # --- Field resolvers (camelCase mapping) ---

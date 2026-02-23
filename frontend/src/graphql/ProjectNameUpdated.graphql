@@ -1,0 +1,6 @@
+subscription ProjectNameUpdated($projectId: ID!) {
+  projectNameUpdated(projectId: $projectId) {
+    id
+    name
+  }
+}

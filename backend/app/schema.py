@@ -9,11 +9,13 @@ type_defs = """
     type Mutation {
         createUser(name: String!, email: String!): User!
         createProject(name: String!): Project!
+        createProjectFromPrompt(content: String!): Project!
         sendMessage(projectId: ID!, content: String!): Message!
     }
 
     type Subscription {
         messageAdded(projectId: ID!): Message!
+        projectNameUpdated(projectId: ID!): Project!
     }
 
     type User {

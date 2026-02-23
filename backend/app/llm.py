@@ -35,3 +35,16 @@ async def get_ai_response(messages: list[dict]) -> str:
             lc_messages.append(AIMessage(content=msg["content"]))
     result = await chat_graph.ainvoke({"messages": lc_messages})
     return result["messages"][-1].content
+
+
+async def generate_project_name(prompt: str) -> str:
+    messages = [
+        {
+            "role": "user",
+            "content": (
+                "Generate a 2-4 word title-case project name for a conversation that starts with "
+                f"the following message. Respond with only the project name, nothing else.\n\n{prompt}"
+            ),
+        }
+    ]
+    return await get_ai_response(messages)

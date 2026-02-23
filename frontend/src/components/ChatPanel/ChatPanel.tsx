@@ -1,30 +1,40 @@
-import { useMutation, useQuery } from "@apollo/client/react";
+import { useMutation, useQuery, useSubscription } from "@apollo/client/react";
 import { useEffect, useState } from "react";
 import type { GetProjectMessagesQuery } from "../../__generated__/graphql";
 import {
-  CreateProjectDocument,
   GetProjectMessagesDocument,
-  GetProjectsDocument,
   MessageAddedDocument,
+  ProjectNameUpdatedDocument,
   SendMessageDocument,
 } from "../../__generated__/graphql";
 import { ChatPanelView } from "./ChatPanelView";
 
-export function ChatPanel() {
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [input, setInput] = useState("");
+type Props = {
+  projectId: string;
+  projectName: string;
+  onHome: () => void;
+};
 
-  const { data: projectsData } = useQuery(GetProjectsDocument);
+export function ChatPanel({ projectId, projectName, onHome }: Props) {
+  const [input, setInput] = useState("");
+  const [displayedName, setDisplayedName] = useState(projectName);
+
+  useSubscription(ProjectNameUpdatedDocument, {
+    variables: { projectId },
+    onData: ({ data }) => {
+      const name = data.data?.projectNameUpdated?.name;
+      if (name) setDisplayedName(name);
+    },
+  });
+
   const { data: messagesData, subscribeToMore } = useQuery(GetProjectMessagesDocument, {
-    variables: { projectId: selectedProjectId ?? "" },
-    skip: !selectedProjectId,
+    variables: { projectId },
   });
 
   useEffect(() => {
-    if (!selectedProjectId) return;
     return subscribeToMore({
       document: MessageAddedDocument,
-      variables: { projectId: selectedProjectId },
+      variables: { projectId },
       updateQuery: (prev, { subscriptionData }): GetProjectMessagesQuery => {
         const newMessage = subscriptionData.data?.messageAdded;
         if (!newMessage || !prev.project) return prev as GetProjectMessagesQuery;
@@ -37,39 +47,26 @@ export function ChatPanel() {
         } as GetProjectMessagesQuery;
       },
     });
-  }, [selectedProjectId, subscribeToMore]);
-
-  const [createProject] = useMutation(CreateProjectDocument, {
-    refetchQueries: [{ query: GetProjectsDocument }],
-  });
+  }, [projectId, subscribeToMore]);
 
   const [sendMessage] = useMutation(SendMessageDocument, {
     refetchQueries: [
-      { query: GetProjectMessagesDocument, variables: { projectId: selectedProjectId } },
+      { query: GetProjectMessagesDocument, variables: { projectId } },
     ],
   });
 
-  const projects = projectsData?.projects ?? [];
   const messages = messagesData?.project?.messages ?? [];
 
   const handleSend = async () => {
-    if (!input.trim() || !selectedProjectId) return;
-    await sendMessage({ variables: { projectId: selectedProjectId, content: input.trim() } });
+    if (!input.trim()) return;
+    await sendMessage({ variables: { projectId, content: input.trim() } });
     setInput("");
-  };
-
-  const handleCreateProject = async (name: string) => {
-    const result = await createProject({ variables: { name } });
-    const newId = result.data?.createProject?.id;
-    if (newId) setSelectedProjectId(newId);
   };
 
   return (
     <ChatPanelView
-      projects={projects}
-      selectedProjectId={selectedProjectId}
-      onProjectSelect={setSelectedProjectId}
-      onCreateProject={handleCreateProject}
+      projectName={displayedName}
+      onHome={onHome}
       messages={messages}
       input={input}
       onInputChange={setInput}
