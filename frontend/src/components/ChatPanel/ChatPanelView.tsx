@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
+import { useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
 
 type Message = { id: string; content: string; role: string };
 
@@ -29,7 +29,7 @@ export function ChatPanelView({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, statusMessage]);
 
   return (
@@ -51,15 +51,21 @@ export function ChatPanelView({
           </svg>
         </button>
         {projectName ? (
-          <span className="font-medium text-base-content truncate">{projectName}</span>
+          <span className="font-medium text-base-content truncate">
+            {projectName}
+          </span>
         ) : (
-          <span className="font-medium text-base-content/50 truncate italic">Generating name…</span>
+          <span className="font-medium text-base-content/50 truncate italic">
+            Generating name…
+          </span>
         )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {messages.length === 0 ? (
-          <p className="text-center text-base-content/50 mt-8">No messages yet.</p>
+          <p className="text-center text-base-content/50 mt-8">
+            No messages yet.
+          </p>
         ) : (
           messages.map((msg) => (
             <div
@@ -67,16 +73,16 @@ export function ChatPanelView({
               className={`chat ${msg.role === "user" ? "chat-end" : "chat-start"}`}
             >
               <div className="chat-bubble">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                </div>
+                <ReactMarkdown>{msg.content}</ReactMarkdown>
+              </div>
             </div>
           ))
         )}
         {statusMessage && (
           <div className="chat chat-start">
             <div className="chat-bubble chat-bubble-ghost opacity-70 italic text-sm flex items-center gap-2">
-              <span className="loading loading-dots loading-xs" />
               {statusMessage}
+              <span className="loading loading-dots loading-xs" />
             </div>
           </div>
         )}

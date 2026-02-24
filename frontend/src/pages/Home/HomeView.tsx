@@ -3,20 +3,41 @@ type Project = { id: string; name: string };
 type Props = {
   input: string;
   onInputChange: (value: string) => void;
-  onInputSubmit: () => void;
+  file: File | null;
+  onFileSelect: (file: File) => void;
+  onFileClear: () => void;
+  canSubmit: boolean;
+  onSubmit: () => void;
   projects: Project[];
   onProjectSelect: (id: string, name: string) => void;
   isCreating: boolean;
+  isUploading: boolean;
+  uploadError: string | null;
 };
 
 export function HomeView({
   input,
   onInputChange,
-  onInputSubmit,
+  file,
+  onFileSelect,
+  onFileClear,
+  canSubmit,
+  onSubmit,
   projects,
   onProjectSelect,
   isCreating,
+  isUploading,
+  uploadError,
 }: Props) {
+  const isBusy = isCreating || isUploading;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+    if (!selected.name.toLowerCase().endsWith(".csv")) return;
+    onFileSelect(selected);
+  };
+
   return (
     <div className="min-h-screen bg-base-100 flex flex-col items-center px-6 py-16">
       <div className="w-full max-w-2xl space-y-4">
@@ -28,17 +49,50 @@ export function HomeView({
           rows={4}
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              onInputSubmit();
-            }
-          }}
-          disabled={isCreating}
+          disabled={isBusy}
         />
 
-        {isCreating && (
-          <p className="text-center text-base-content/50 text-sm">Creating project…</p>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileChange}
+              className="file-input file-input-bordered file-input-sm w-full max-w-xs"
+              disabled={isBusy}
+            />
+            {file && (
+              <span className="text-sm text-base-content/80 flex items-center gap-2">
+                {file.name}
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-xs"
+                  onClick={onFileClear}
+                  disabled={isBusy}
+                >
+                  Remove
+                </button>
+              </span>
+            )}
+          </div>
+          {!file && (
+            <p className="text-sm text-base-content/60">Add a CSV data file to continue.</p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className="btn btn-primary w-full"
+          onClick={onSubmit}
+          disabled={!canSubmit}
+        >
+          {isCreating ? "Creating project…" : isUploading ? "Uploading data…" : "Start project"}
+        </button>
+
+        {uploadError && (
+          <div className="alert alert-error">
+            <span>{uploadError}</span>
+          </div>
         )}
       </div>
 

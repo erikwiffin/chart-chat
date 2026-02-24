@@ -88,15 +88,21 @@ async def resolve_create_project_from_prompt(_, info, content):
 @mutation.field("sendMessage")
 async def resolve_send_message(_, info, projectId, content, activeChartId=None):
     db = info.context["db"]
-    message = Message(project_id=int(projectId), content=content, role="user")
+    project_id = int(projectId)
+    message = Message(project_id=project_id, content=content, role="user")
     db.add(message)
     db.commit()
     db.refresh(message)
 
     task = asyncio.create_task(
-        _generate_assistant_response(int(projectId), activeChartId)
+        _generate_assistant_response(project_id, activeChartId)
     )
-    _active_tasks[int(projectId)] = task
+    _active_tasks[project_id] = task
+
+    # If this is the first message, generate project name from prompt (same as createProjectFromPrompt)
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project and len(project.messages) == 1:
+        asyncio.create_task(_generate_and_update_project_name(project_id, content))
 
     return message
 

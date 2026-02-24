@@ -1,5 +1,8 @@
 import { useEffect, useRef } from "react";
-import embed from "vega-embed";
+import embed, { type VisualizationSpec } from "vega-embed";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 type Props = {
   title: string;
@@ -15,8 +18,20 @@ export function ChartCard({ title, spec }: Props) {
     let view: { finalize: () => void } | null = null;
 
     try {
-      const parsedSpec = JSON.parse(spec);
-      embed(containerRef.current, parsedSpec, { actions: false }).then(
+      const parsedSpec = JSON.parse(spec) as Record<string, unknown> & {
+        data?: { url?: string };
+      };
+      const dataUrl = parsedSpec.data?.url;
+      if (
+        typeof dataUrl === "string" &&
+        dataUrl.startsWith("/")
+      ) {
+        parsedSpec.data = {
+          ...parsedSpec.data,
+          url: API_BASE_URL.replace(/\/$/, "") + dataUrl,
+        };
+      }
+      embed(containerRef.current, parsedSpec as VisualizationSpec, { actions: false }).then(
         (result) => {
           view = result.view;
         }
