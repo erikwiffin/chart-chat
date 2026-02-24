@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: litellm-postgres
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: litellm
+    ports:
+      - "5433:5432"
+    volumes:
+      - litellm-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm -d litellm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  litellm:
+    image: docker.litellm.ai/berriai/litellm:main-latest
+    container_name: litellm
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml
+    environment:
+      - DATABASE_URL=postgresql://litellm:litellm@postgres:5432/litellm
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-sk-1234}
+      - LITELLM_SALT_KEY=${LITELLM_SALT_KEY:-sk-salt-1234}
+      # Add your provider API keys here
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["--config", "/app/config.yaml", "--detailed_debug"]
+
+volumes:
+  litellm-postgres-data:
