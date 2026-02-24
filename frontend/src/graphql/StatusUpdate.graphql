@@ -1,0 +1,6 @@
+subscription StatusUpdate($projectId: ID!) {
+  statusUpdate(projectId: $projectId) {
+    message
+    task
+  }
+}

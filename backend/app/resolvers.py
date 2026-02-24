@@ -16,6 +16,8 @@ message_type = ObjectType("Message")
 data_source_type = ObjectType("DataSource")
 chart_type = ObjectType("Chart")
 
+_active_tasks: dict[int, asyncio.Task] = {}
+
 
 # --- Queries ---
 
@@ -74,7 +76,8 @@ async def resolve_create_project_from_prompt(_, info, content):
     db.commit()
     db.refresh(message)
 
-    asyncio.create_task(_generate_assistant_response(project.id))
+    task = asyncio.create_task(_generate_assistant_response(project.id))
+    _active_tasks[project.id] = task
     asyncio.create_task(_generate_and_update_project_name(project.id, content))
 
     return project
@@ -88,9 +91,19 @@ async def resolve_send_message(_, info, projectId, content, activeChartId=None):
     db.commit()
     db.refresh(message)
 
-    asyncio.create_task(_generate_assistant_response(int(projectId), activeChartId))
+    task = asyncio.create_task(_generate_assistant_response(int(projectId), activeChartId))
+    _active_tasks[int(projectId)] = task
 
     return message
+
+
+@mutation.field("stopGeneration")
+async def resolve_stop_generation(_, info, projectId):
+    task = _active_tasks.pop(int(projectId), None)
+    if task:
+        task.cancel()
+        return True
+    return False
 
 
 async def _generate_and_update_project_name(project_id: int, prompt: str):
@@ -144,8 +157,12 @@ async def _generate_assistant_response(project_id: int, active_chart_id: str | N
             for c in existing_db_charts
         ]
 
+        async def on_status(task: str, message: str):
+            await pubsub.publish(f"status:{project_id}", {"task": task, "message": message})
+
         content, created_charts, modified_charts = await get_ai_response(
-            messages, data_source_dicts, existing_chart_dicts, active_chart_id
+            messages, data_source_dicts, existing_chart_dicts, active_chart_id,
+            status_callback=on_status,
         )
 
         # Save and publish new charts
@@ -175,8 +192,10 @@ async def _generate_assistant_response(project_id: int, active_chart_id: str | N
         db.refresh(assistant_msg)
 
         await pubsub.publish(f"project:{project_id}", assistant_msg)
+        _active_tasks.pop(project_id, None)
     except Exception as e:
         print(f"Error generating assistant response: {e}")
+        _active_tasks.pop(project_id, None)
     finally:
         db.close()
 
@@ -225,6 +244,17 @@ async def chart_updated_source(obj, info, projectId):
 @subscription.field("chartUpdated")
 def chart_updated_resolver(chart, info, projectId):
     return chart
+
+
+@subscription.source("statusUpdate")
+async def status_update_source(obj, info, projectId):
+    async for event in pubsub.subscribe(f"status:{projectId}"):
+        yield event
+
+
+@subscription.field("statusUpdate")
+def status_update_resolver(event, info, projectId):
+    return event
 
 
 # --- Field resolvers (camelCase mapping) ---

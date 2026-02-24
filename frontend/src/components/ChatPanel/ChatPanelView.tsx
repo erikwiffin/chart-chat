@@ -10,6 +10,9 @@ type Props = {
   input: string;
   onInputChange: (value: string) => void;
   onSend: () => void;
+  isGenerating: boolean;
+  statusMessage: string | null;
+  onStop: () => void;
 };
 
 export function ChatPanelView({
@@ -19,12 +22,15 @@ export function ChatPanelView({
   input,
   onInputChange,
   onSend,
+  isGenerating,
+  statusMessage,
+  onStop,
 }: Props) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, statusMessage]);
 
   return (
     <div className="flex flex-col h-full">
@@ -66,6 +72,14 @@ export function ChatPanelView({
             </div>
           ))
         )}
+        {statusMessage && (
+          <div className="chat chat-start">
+            <div className="chat-bubble chat-bubble-ghost opacity-70 italic text-sm flex items-center gap-2">
+              <span className="loading loading-dots loading-xs" />
+              {statusMessage}
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -83,6 +97,11 @@ export function ChatPanelView({
             }
           }}
         />
+        {isGenerating && (
+          <button className="btn btn-sm btn-error mt-2" onClick={onStop}>
+            Stop
+          </button>
+        )}
       </div>
     </div>
   );

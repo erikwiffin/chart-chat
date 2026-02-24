@@ -2,7 +2,8 @@ import base64
 import json
 import operator
 import os
-from typing import Annotated, List, Literal, Tuple, Union
+from collections.abc import Callable, Coroutine
+from typing import Annotated, Any, List, Literal, Tuple, Union
 
 import altair as alt
 import jsonpatch
@@ -267,6 +268,7 @@ def _build_plan_execute_graph(
     collected_charts: list[dict],
     existing_charts: list[dict],
     modified_charts: list[dict],
+    status_callback: Callable[[str, str], Coroutine[Any, Any, None]] | None = None,
 ):
     llm = _get_llm()
     tools = _build_tools(data_sources, collected_charts, existing_charts, modified_charts)
@@ -296,13 +298,15 @@ def _build_plan_execute_graph(
         assert isinstance(plan, Plan)
         return {"plan": plan.steps}
 
-    def execute_step(state: PlanExecute):
+    async def execute_step(state: PlanExecute):
         plan = state["plan"]
         plan_str = "\n".join(f"{i+1}. {s}" for i, s in enumerate(plan))
         task = plan[0]
+        if status_callback:
+            await status_callback(task, task)
         past = "\n".join(f"- {s}: {r}" for s, r in state.get("past_steps", []))
         task_input = f"Plan:\n{plan_str}\n\nCompleted steps:\n{past}\n\nExecute: {task}"
-        response = executor.invoke({"messages": [HumanMessage(content=task_input)]})
+        response = await executor.ainvoke({"messages": [HumanMessage(content=task_input)]})
         return {"past_steps": [(task, response["messages"][-1].content)]}
 
     def replan_step(state: PlanExecute):
@@ -341,6 +345,7 @@ async def get_ai_response(
     data_sources: list[dict],
     existing_charts: list[dict] | None = None,
     active_chart_id: str | None = None,
+    status_callback: Callable[[str, str], Coroutine[Any, Any, None]] | None = None,
 ) -> tuple[str, list[dict], list[dict]]:
     user_input = next(
         (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
@@ -364,7 +369,7 @@ async def get_ai_response(
     collected_charts: list[dict] = []
     modified_charts: list[dict] = []
     graph = _build_plan_execute_graph(
-        data_sources, collected_charts, existing_charts, modified_charts
+        data_sources, collected_charts, existing_charts, modified_charts, status_callback
     )
     result = await graph.ainvoke(
         {

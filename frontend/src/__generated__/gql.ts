@@ -25,6 +25,8 @@ type Documents = {
     "subscription MessageAdded($projectId: ID!) {\n  messageAdded(projectId: $projectId) {\n    id\n    content\n    role\n    createdAt\n  }\n}": typeof types.MessageAddedDocument,
     "subscription ProjectNameUpdated($projectId: ID!) {\n  projectNameUpdated(projectId: $projectId) {\n    id\n    name\n  }\n}": typeof types.ProjectNameUpdatedDocument,
     "mutation SendMessage($projectId: ID!, $content: String!, $activeChartId: ID) {\n  sendMessage(\n    projectId: $projectId\n    content: $content\n    activeChartId: $activeChartId\n  ) {\n    id\n    content\n    role\n    createdAt\n  }\n}": typeof types.SendMessageDocument,
+    "subscription StatusUpdate($projectId: ID!) {\n  statusUpdate(projectId: $projectId) {\n    message\n    task\n  }\n}": typeof types.StatusUpdateDocument,
+    "mutation StopGeneration($projectId: ID!) {\n  stopGeneration(projectId: $projectId)\n}": typeof types.StopGenerationDocument,
 };
 const documents: Documents = {
     "subscription ChartAdded($projectId: ID!) {\n  chartAdded(projectId: $projectId) {\n    id\n    title\n    spec\n    createdAt\n  }\n}": types.ChartAddedDocument,
@@ -38,6 +40,8 @@ const documents: Documents = {
     "subscription MessageAdded($projectId: ID!) {\n  messageAdded(projectId: $projectId) {\n    id\n    content\n    role\n    createdAt\n  }\n}": types.MessageAddedDocument,
     "subscription ProjectNameUpdated($projectId: ID!) {\n  projectNameUpdated(projectId: $projectId) {\n    id\n    name\n  }\n}": types.ProjectNameUpdatedDocument,
     "mutation SendMessage($projectId: ID!, $content: String!, $activeChartId: ID) {\n  sendMessage(\n    projectId: $projectId\n    content: $content\n    activeChartId: $activeChartId\n  ) {\n    id\n    content\n    role\n    createdAt\n  }\n}": types.SendMessageDocument,
+    "subscription StatusUpdate($projectId: ID!) {\n  statusUpdate(projectId: $projectId) {\n    message\n    task\n  }\n}": types.StatusUpdateDocument,
+    "mutation StopGeneration($projectId: ID!) {\n  stopGeneration(projectId: $projectId)\n}": types.StopGenerationDocument,
 };
 
 /**
@@ -98,6 +102,14 @@ export function graphql(source: "subscription ProjectNameUpdated($projectId: ID!
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "mutation SendMessage($projectId: ID!, $content: String!, $activeChartId: ID) {\n  sendMessage(\n    projectId: $projectId\n    content: $content\n    activeChartId: $activeChartId\n  ) {\n    id\n    content\n    role\n    createdAt\n  }\n}"): (typeof documents)["mutation SendMessage($projectId: ID!, $content: String!, $activeChartId: ID) {\n  sendMessage(\n    projectId: $projectId\n    content: $content\n    activeChartId: $activeChartId\n  ) {\n    id\n    content\n    role\n    createdAt\n  }\n}"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "subscription StatusUpdate($projectId: ID!) {\n  statusUpdate(projectId: $projectId) {\n    message\n    task\n  }\n}"): (typeof documents)["subscription StatusUpdate($projectId: ID!) {\n  statusUpdate(projectId: $projectId) {\n    message\n    task\n  }\n}"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "mutation StopGeneration($projectId: ID!) {\n  stopGeneration(projectId: $projectId)\n}"): (typeof documents)["mutation StopGeneration($projectId: ID!) {\n  stopGeneration(projectId: $projectId)\n}"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

@@ -6,6 +6,8 @@ import {
   MessageAddedDocument,
   ProjectNameUpdatedDocument,
   SendMessageDocument,
+  StatusUpdateDocument,
+  StopGenerationDocument,
 } from "../../__generated__/graphql";
 import { ChatPanelView } from "./ChatPanelView";
 
@@ -19,12 +21,22 @@ type Props = {
 export function ChatPanel({ projectId, projectName, onHome, activeChartId }: Props) {
   const [input, setInput] = useState("");
   const [displayedName, setDisplayedName] = useState(projectName);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useSubscription(ProjectNameUpdatedDocument, {
     variables: { projectId },
     onData: ({ data }) => {
       const name = data.data?.projectNameUpdated?.name;
       if (name) setDisplayedName(name);
+    },
+  });
+
+  useSubscription(StatusUpdateDocument, {
+    variables: { projectId },
+    onData: ({ data }) => {
+      const update = data.data?.statusUpdate;
+      if (update) setStatusMessage(update.message);
     },
   });
 
@@ -39,6 +51,8 @@ export function ChatPanel({ projectId, projectName, onHome, activeChartId }: Pro
       updateQuery: (prev, { subscriptionData }): GetProjectMessagesQuery => {
         const newMessage = subscriptionData.data?.messageAdded;
         if (!newMessage || !prev.project) return prev as GetProjectMessagesQuery;
+        setIsGenerating(false);
+        setStatusMessage(null);
         return {
           ...prev,
           project: {
@@ -56,12 +70,21 @@ export function ChatPanel({ projectId, projectName, onHome, activeChartId }: Pro
     ],
   });
 
+  const [stopGeneration] = useMutation(StopGenerationDocument);
+
   const messages = messagesData?.project?.messages ?? [];
 
   const handleSend = async () => {
     if (!input.trim()) return;
+    setIsGenerating(true);
     await sendMessage({ variables: { projectId, content: input.trim(), activeChartId } });
     setInput("");
+  };
+
+  const handleStop = async () => {
+    await stopGeneration({ variables: { projectId } });
+    setIsGenerating(false);
+    setStatusMessage(null);
   };
 
   return (
@@ -72,6 +95,9 @@ export function ChatPanel({ projectId, projectName, onHome, activeChartId }: Pro
       input={input}
       onInputChange={setInput}
       onSend={handleSend}
+      isGenerating={isGenerating}
+      statusMessage={statusMessage}
+      onStop={handleStop}
     />
   );
 }

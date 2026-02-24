@@ -1,0 +1,3 @@
+mutation StopGeneration($projectId: ID!) {
+  stopGeneration(projectId: $projectId)
+}
