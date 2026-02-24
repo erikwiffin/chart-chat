@@ -122,25 +122,22 @@ async def _generate_assistant_response(project_id: int):
             for msg in project.messages
         ]
 
-        # Prepend data source context if any exist
+        # Build data source context for tools
         data_sources = (
             db.query(DataSource).filter(DataSource.project_id == project_id).all()
         )
-        if data_sources:
-            context_lines = ["The following data sources are available:\n"]
-            for ds in data_sources:
-                context_lines.append(f"File: {ds.name}")
-                context_lines.append(f"Columns: {', '.join(ds.columns)}")
-                if ds.sample_rows:
-                    context_lines.append(
-                        f"Sample rows (first {len(ds.sample_rows)}):\n"
-                        + json.dumps(ds.sample_rows, indent=2)
-                    )
-                context_lines.append("")
-            system_content = "\n".join(context_lines)
-            messages = [{"role": "system", "content": system_content}] + messages
+        data_source_dicts = [
+            {
+                "id": ds.id,
+                "name": ds.name,
+                "columns": ds.columns,
+                "sample_rows": ds.sample_rows or [],
+                "url": f"/api/data-sources/{ds.id}/data",
+            }
+            for ds in data_sources
+        ]
 
-        content, created_charts = await get_ai_response(messages)
+        content, created_charts = await get_ai_response(messages, data_source_dicts)
 
         # Save and publish charts
         for chart_data in created_charts:

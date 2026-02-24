@@ -1,10 +1,12 @@
 import os
 
+import pandas as pd
 from ariadne import load_schema_from_path, make_executable_schema
 from ariadne.asgi import GraphQL
 from ariadne.asgi.handlers import GraphQLTransportWSHandler
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from .database import Base, SessionLocal, engine
 from .models import DataSource, Project
@@ -59,6 +61,19 @@ graphql_app = GraphQL(
 )
 
 app.mount("/graphql", graphql_app)
+
+
+@app.get("/api/data-sources/{data_source_id}/data")
+async def get_data_source_data(data_source_id: int):
+    db = SessionLocal()
+    try:
+        ds = db.query(DataSource).filter(DataSource.id == data_source_id).first()
+        if not ds:
+            raise HTTPException(status_code=404, detail="Data source not found.")
+        df = pd.read_csv(ds.file_path)
+        return JSONResponse(df.to_dict(orient="records"))
+    finally:
+        db.close()
 
 
 @app.get("/api/data-sources/{data_source_id}/preview")
