@@ -21,6 +21,7 @@ _active_tasks: dict[int, asyncio.Task] = {}
 
 # --- Queries ---
 
+
 @query.field("hello")
 def resolve_hello(*_):
     return "Hello from chart-chat!"
@@ -42,6 +43,7 @@ def resolve_project(_, info, id):
 
 
 # --- Mutations ---
+
 
 @mutation.field("createUser")
 def resolve_create_user(_, info, name, email):
@@ -91,7 +93,9 @@ async def resolve_send_message(_, info, projectId, content, activeChartId=None):
     db.commit()
     db.refresh(message)
 
-    task = asyncio.create_task(_generate_assistant_response(int(projectId), activeChartId))
+    task = asyncio.create_task(
+        _generate_assistant_response(int(projectId), activeChartId)
+    )
     _active_tasks[int(projectId)] = task
 
     return message
@@ -123,7 +127,9 @@ async def _generate_and_update_project_name(project_id: int, prompt: str):
         db.close()
 
 
-async def _generate_assistant_response(project_id: int, active_chart_id: str | None = None):
+async def _generate_assistant_response(
+    project_id: int, active_chart_id: str | None = None
+):
     db = SessionLocal()
     try:
         project = db.query(Project).filter(Project.id == project_id).first()
@@ -131,8 +137,7 @@ async def _generate_assistant_response(project_id: int, active_chart_id: str | N
             return
 
         messages = [
-            {"role": msg.role, "content": msg.content}
-            for msg in project.messages
+            {"role": msg.role, "content": msg.content} for msg in project.messages
         ]
 
         # Build data source context for tools
@@ -151,26 +156,49 @@ async def _generate_assistant_response(project_id: int, active_chart_id: str | N
         ]
 
         # Fetch existing charts for tool context
-        existing_db_charts = db.query(Chart).filter(Chart.project_id == project_id).all()
+        existing_db_charts = (
+            db.query(Chart).filter(Chart.project_id == project_id).all()
+        )
         existing_chart_dicts = [
-            {"id": str(c.id), "title": c.title, "spec": c.spec}
+            {
+                "id": str(c.id),
+                "title": c.title,
+                "spec": {
+                    **c.spec,
+                    **(
+                        {"data": {"url": f"/api/data-sources/{c.data_source_id}/data"}}
+                        if c.data_source_id
+                        else {}
+                    ),
+                },
+                "data_source_id": c.data_source_id,
+            }
             for c in existing_db_charts
         ]
 
         async def on_status(task: str, message: str):
-            await pubsub.publish(f"status:{project_id}", {"task": task, "message": message})
+            await pubsub.publish(
+                f"status:{project_id}", {"task": task, "message": message}
+            )
 
         content, created_charts, modified_charts = await get_ai_response(
-            messages, data_source_dicts, existing_chart_dicts, active_chart_id,
+            messages,
+            data_source_dicts,
+            existing_chart_dicts,
+            active_chart_id,
             status_callback=on_status,
         )
 
         # Save and publish new charts
         for chart_data in created_charts:
+            spec = dict(chart_data["spec"])
+            spec.pop("data", None)
+            data_source_id = chart_data.get("data_source_id")
             chart = Chart(
                 project_id=project_id,
                 title=chart_data["title"],
-                spec=chart_data["spec"],
+                spec=spec,
+                data_source_id=data_source_id,
             )
             db.add(chart)
             db.commit()
@@ -181,12 +209,18 @@ async def _generate_assistant_response(project_id: int, active_chart_id: str | N
         for modified in modified_charts:
             chart = db.query(Chart).filter(Chart.id == int(modified["id"])).first()
             if chart:
-                chart.spec = modified["spec"]
+                spec = dict(modified["spec"])
+                spec.pop("data", None)
+                chart.spec = spec
+                if modified.get("data_source_id") is not None:
+                    chart.data_source_id = modified["data_source_id"]
                 db.commit()
                 db.refresh(chart)
                 await pubsub.publish(f"chart_updated:{project_id}", chart)
 
-        assistant_msg = Message(project_id=project_id, content=content, role="assistant")
+        assistant_msg = Message(
+            project_id=project_id, content=content, role="assistant"
+        )
         db.add(assistant_msg)
         db.commit()
         db.refresh(assistant_msg)
@@ -201,6 +235,7 @@ async def _generate_assistant_response(project_id: int, active_chart_id: str | N
 
 
 # --- Subscriptions ---
+
 
 @subscription.source("messageAdded")
 async def message_added_source(obj, info, projectId):
@@ -259,6 +294,7 @@ def status_update_resolver(event, info, projectId):
 
 # --- Field resolvers (camelCase mapping) ---
 
+
 @project_type.field("createdAt")
 def resolve_project_created_at(obj, *_):
     return obj.created_at.isoformat()
@@ -296,7 +332,10 @@ def resolve_data_source_created_at(obj, *_):
 
 @chart_type.field("spec")
 def resolve_chart_spec(obj, *_):
-    return json.dumps(obj.spec)
+    spec = dict(obj.spec)
+    if obj.data_source_id:
+        spec["data"] = {"url": f"/api/data-sources/{obj.data_source_id}/data"}
+    return json.dumps(spec)
 
 
 @chart_type.field("createdAt")

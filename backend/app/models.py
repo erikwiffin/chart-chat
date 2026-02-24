@@ -75,6 +75,9 @@ class Chart(Base):
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
     title: Mapped[str] = mapped_column(String(255))
     spec: Mapped[dict] = mapped_column(JSON)
+    data_source_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("data_sources.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     project: Mapped["Project"] = relationship(back_populates="charts")

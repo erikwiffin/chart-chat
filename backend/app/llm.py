@@ -2,6 +2,7 @@ import base64
 import json
 import operator
 import os
+import re
 from collections.abc import Callable, Coroutine
 from typing import Annotated, Any, List, Literal, Tuple, Union
 
@@ -31,7 +32,9 @@ def _get_llm() -> ChatOpenAI:
 def _validate_vega_lite_spec(spec: dict) -> str | None:
     """Validate a Vega-Lite spec using altair. Returns None on success, error string on failure."""
     try:
-        alt.Chart.from_dict(spec)
+        # Inject placeholder data so altair validation works on specs stored without data
+        validation_spec = spec if "data" in spec else {**spec, "data": {"values": []}}
+        alt.Chart.from_dict(validation_spec)
         return None
     except Exception as e:
         return str(e)
@@ -140,10 +143,17 @@ def _build_tools(
     @tool
     def create_chart(title: str, spec: dict) -> str:
         """Create a Vega-Lite chart. Call this when ready to produce a visualization."""
+        spec = dict(spec)
+        ds_id = None
+        data_url = (spec.get("data") or {}).get("url", "")
+        m = re.search(r"/api/data-sources/(\d+)/data", data_url)
+        if m:
+            ds_id = int(m.group(1))
+        spec.pop("data", None)
         error = _validate_vega_lite_spec(spec)
         if error:
             return f"Invalid Vega-Lite spec: {error}"
-        collected_charts.append({"title": title, "spec": spec})
+        collected_charts.append({"title": title, "spec": spec, "data_source_id": ds_id})
         return f"Chart '{title}' created."
 
     @tool
@@ -162,12 +172,21 @@ def _build_tools(
         """Get the Vega-Lite spec of a chart by its ID."""
         for chart in existing_charts:
             if str(chart["id"]) == chart_id:
-                return json.dumps(chart["spec"], indent=2)
+                spec = dict(chart["spec"])
+                ds_id = chart.get("data_source_id")
+                if ds_id:
+                    spec["data"] = {"url": f"/api/data-sources/{ds_id}/data"}
+                return json.dumps(spec, indent=2)
         if chart_id.startswith("new-"):
             try:
                 idx = int(chart_id[4:])
                 if 0 <= idx < len(collected_charts):
-                    return json.dumps(collected_charts[idx]["spec"], indent=2)
+                    chart = collected_charts[idx]
+                    spec = dict(chart["spec"])
+                    ds_id = chart.get("data_source_id")
+                    if ds_id:
+                        spec["data"] = {"url": f"/api/data-sources/{ds_id}/data"}
+                    return json.dumps(spec, indent=2)
             except ValueError:
                 pass
         return f"Chart '{chart_id}' not found."
@@ -177,10 +196,12 @@ def _build_tools(
         """Render a chart as a PNG image and return it for visual inspection."""
         spec = None
         title = None
+        chart_ds_id = None
         for chart in existing_charts:
             if str(chart["id"]) == chart_id:
                 spec = chart["spec"]
                 title = chart["title"]
+                chart_ds_id = chart.get("data_source_id")
                 break
         if spec is None and chart_id.startswith("new-"):
             try:
@@ -188,10 +209,17 @@ def _build_tools(
                 if 0 <= idx < len(collected_charts):
                     spec = collected_charts[idx]["spec"]
                     title = collected_charts[idx]["title"]
+                    chart_ds_id = collected_charts[idx].get("data_source_id")
             except ValueError:
                 pass
         if spec is None:
             return [{"type": "text", "text": f"Chart '{chart_id}' not found."}]
+        spec = dict(spec)
+        if chart_ds_id:
+            for ds in data_sources:
+                if ds["id"] == chart_ds_id:
+                    spec["data"] = {"values": ds["sample_rows"]}
+                    break
         spec_json = json.dumps(spec)
         png_bytes = vlc.vegalite_to_png(spec_json)
         b64 = base64.b64encode(png_bytes).decode("utf-8")
@@ -244,7 +272,12 @@ def _build_tools(
 
         if is_existing:
             modified_charts.append(
-                {"id": chart_id, "title": target_chart["title"], "spec": new_spec}
+                {
+                    "id": chart_id,
+                    "title": target_chart["title"],
+                    "spec": new_spec,
+                    "data_source_id": target_chart.get("data_source_id"),
+                }
             )
         elif existing_idx is not None:
             collected_charts[existing_idx]["spec"] = new_spec
