@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSubscription } from "@apollo/client/react";
-import { ChartUpdatedDocument } from "../../__generated__/graphql";
+import {
+  ChartAddedDocument,
+  ChartUpdatedDocument,
+} from "../../__generated__/graphql";
 import { ChartDetailTab } from "../ChartDetailTab/ChartDetailTab";
 import { DataSourceDetailTab } from "../DataSourceDetailTab/DataSourceDetailTab";
 import { OverviewPanel } from "../OverviewPanel/OverviewPanel";
@@ -32,6 +35,28 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
     }
   }, [activeTabId, tabs, onActiveChartChange]);
 
+  useSubscription(ChartAddedDocument, {
+    variables: { projectId },
+    onData: ({ data }) => {
+      const newChart = data.data?.chartAdded;
+      if (!newChart) return;
+      const tabId = `chart-${newChart.id}`;
+      setTabs((prev) => {
+        if (prev.some((t) => t.id === tabId)) return prev;
+        const newTab: ChartTab = {
+          kind: "chart",
+          id: tabId,
+          label: truncateLabel(newChart.title),
+          title: newChart.title,
+          spec: newChart.spec,
+          closeable: true,
+        };
+        return [...prev, newTab];
+      });
+      setActiveTabId(tabId);
+    },
+  });
+
   useSubscription(ChartUpdatedDocument, {
     variables: { projectId },
     onData: ({ data }) => {
@@ -41,7 +66,12 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
       setTabs((prev) =>
         prev.map((tab) => {
           if (tab.id === tabId && "kind" in tab && tab.kind === "chart") {
-            return { ...tab, spec: updatedChart.spec };
+            return {
+              ...tab,
+              spec: updatedChart.spec,
+              title: updatedChart.title,
+              label: truncateLabel(updatedChart.title),
+            };
           }
           return tab;
         })
