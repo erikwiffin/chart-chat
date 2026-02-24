@@ -1,0 +1,8 @@
+subscription ChartUpdated($projectId: ID!) {
+  chartUpdated(projectId: $projectId) {
+    id
+    title
+    spec
+    createdAt
+  }
+}

@@ -13,9 +13,10 @@ type Props = {
   projectId: string;
   projectName: string;
   onHome: () => void;
+  activeChartId: string | null;
 };
 
-export function ChatPanel({ projectId, projectName, onHome }: Props) {
+export function ChatPanel({ projectId, projectName, onHome, activeChartId }: Props) {
   const [input, setInput] = useState("");
   const [displayedName, setDisplayedName] = useState(projectName);
 
@@ -59,7 +60,7 @@ export function ChatPanel({ projectId, projectName, onHome }: Props) {
 
   const handleSend = async () => {
     if (!input.trim()) return;
-    await sendMessage({ variables: { projectId, content: input.trim() } });
+    await sendMessage({ variables: { projectId, content: input.trim(), activeChartId } });
     setInput("");
   };
 

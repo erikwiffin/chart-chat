@@ -13,4 +13,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "pandas>=2.0.0",
     "langchain>=1.2.10",
+    "altair>=6.0.0",
+    "vl-convert-python>=1.9.0.post1",
+    "jsonpatch>=1.33",
 ]

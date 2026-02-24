@@ -14,6 +14,8 @@ type Props = {
   onDragOver: (e: React.DragEvent) => void;
   onDragLeave: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
+  activeChartId: string | null;
+  onActiveChartChange: (id: string | null) => void;
 };
 
 export function ProjectView({
@@ -28,6 +30,8 @@ export function ProjectView({
   onDragOver,
   onDragLeave,
   onDrop,
+  activeChartId,
+  onActiveChartChange,
 }: Props) {
   return (
     <div
@@ -58,7 +62,12 @@ export function ProjectView({
       )}
 
       <div style={{ width: `${leftPercent}%` }} className="h-full overflow-hidden">
-        <ChatPanel projectId={projectId} projectName={projectName} onHome={onHome} />
+        <ChatPanel
+          projectId={projectId}
+          projectName={projectName}
+          onHome={onHome}
+          activeChartId={activeChartId}
+        />
       </div>
 
       <div
@@ -67,7 +76,7 @@ export function ProjectView({
       />
 
       <div style={{ width: `${100 - leftPercent}%` }} className="h-full overflow-hidden">
-        <MainPanel projectId={projectId} />
+        <MainPanel projectId={projectId} onActiveChartChange={onActiveChartChange} />
       </div>
     </div>
   );

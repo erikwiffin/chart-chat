@@ -1,4 +1,6 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSubscription } from "@apollo/client/react";
+import { ChartUpdatedDocument } from "../../__generated__/graphql";
 import { ChartDetailTab } from "../ChartDetailTab/ChartDetailTab";
 import { DataSourceDetailTab } from "../DataSourceDetailTab/DataSourceDetailTab";
 import { OverviewPanel } from "../OverviewPanel/OverviewPanel";
@@ -8,16 +10,44 @@ import { MainPanelView } from "./MainPanelView";
 
 type Props = {
   projectId: string;
+  onActiveChartChange: (chartId: string | null) => void;
 };
 
 type Chart = { id: string; title: string; spec: string };
 type DataSource = { id: string; name: string; sourceType: string; columns: string[]; rowCount: number };
 
-export function MainPanel({ projectId }: Props) {
+export function MainPanel({ projectId, onActiveChartChange }: Props) {
   const [tabs, setTabs] = useState<AppTab[]>([
     { id: "overview", label: "Overview", closeable: false },
   ]);
   const [activeTabId, setActiveTabId] = useState("overview");
+
+  useEffect(() => {
+    const activeTab = tabs.find((t) => t.id === activeTabId);
+    if (activeTab && "kind" in activeTab && activeTab.kind === "chart") {
+      const chartId = activeTab.id.replace("chart-", "");
+      onActiveChartChange(chartId);
+    } else {
+      onActiveChartChange(null);
+    }
+  }, [activeTabId, tabs, onActiveChartChange]);
+
+  useSubscription(ChartUpdatedDocument, {
+    variables: { projectId },
+    onData: ({ data }) => {
+      const updatedChart = data.data?.chartUpdated;
+      if (!updatedChart) return;
+      const tabId = `chart-${updatedChart.id}`;
+      setTabs((prev) =>
+        prev.map((tab) => {
+          if (tab.id === tabId && "kind" in tab && tab.kind === "chart") {
+            return { ...tab, spec: updatedChart.spec };
+          }
+          return tab;
+        })
+      );
+    },
+  });
 
   const openChartTab = useCallback((chart: Chart) => {
     const tabId = `chart-${chart.id}`;

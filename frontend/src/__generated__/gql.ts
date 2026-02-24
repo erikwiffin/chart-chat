@@ -15,6 +15,7 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  */
 type Documents = {
     "subscription ChartAdded($projectId: ID!) {\n  chartAdded(projectId: $projectId) {\n    id\n    title\n    spec\n    createdAt\n  }\n}": typeof types.ChartAddedDocument,
+    "subscription ChartUpdated($projectId: ID!) {\n  chartUpdated(projectId: $projectId) {\n    id\n    title\n    spec\n    createdAt\n  }\n}": typeof types.ChartUpdatedDocument,
     "mutation CreateProject($name: String!) {\n  createProject(name: $name) {\n    id\n    name\n  }\n}": typeof types.CreateProjectDocument,
     "mutation CreateProjectFromPrompt($content: String!) {\n  createProjectFromPrompt(content: $content) {\n    id\n    name\n  }\n}": typeof types.CreateProjectFromPromptDocument,
     "query GetProjectCharts($id: ID!) {\n  project(id: $id) {\n    charts {\n      id\n      title\n      spec\n      createdAt\n    }\n  }\n}": typeof types.GetProjectChartsDocument,
@@ -23,10 +24,11 @@ type Documents = {
     "query GetProjects {\n  projects {\n    id\n    name\n  }\n}": typeof types.GetProjectsDocument,
     "subscription MessageAdded($projectId: ID!) {\n  messageAdded(projectId: $projectId) {\n    id\n    content\n    role\n    createdAt\n  }\n}": typeof types.MessageAddedDocument,
     "subscription ProjectNameUpdated($projectId: ID!) {\n  projectNameUpdated(projectId: $projectId) {\n    id\n    name\n  }\n}": typeof types.ProjectNameUpdatedDocument,
-    "mutation SendMessage($projectId: ID!, $content: String!) {\n  sendMessage(projectId: $projectId, content: $content) {\n    id\n    content\n    role\n    createdAt\n  }\n}": typeof types.SendMessageDocument,
+    "mutation SendMessage($projectId: ID!, $content: String!, $activeChartId: ID) {\n  sendMessage(\n    projectId: $projectId\n    content: $content\n    activeChartId: $activeChartId\n  ) {\n    id\n    content\n    role\n    createdAt\n  }\n}": typeof types.SendMessageDocument,
 };
 const documents: Documents = {
     "subscription ChartAdded($projectId: ID!) {\n  chartAdded(projectId: $projectId) {\n    id\n    title\n    spec\n    createdAt\n  }\n}": types.ChartAddedDocument,
+    "subscription ChartUpdated($projectId: ID!) {\n  chartUpdated(projectId: $projectId) {\n    id\n    title\n    spec\n    createdAt\n  }\n}": types.ChartUpdatedDocument,
     "mutation CreateProject($name: String!) {\n  createProject(name: $name) {\n    id\n    name\n  }\n}": types.CreateProjectDocument,
     "mutation CreateProjectFromPrompt($content: String!) {\n  createProjectFromPrompt(content: $content) {\n    id\n    name\n  }\n}": types.CreateProjectFromPromptDocument,
     "query GetProjectCharts($id: ID!) {\n  project(id: $id) {\n    charts {\n      id\n      title\n      spec\n      createdAt\n    }\n  }\n}": types.GetProjectChartsDocument,
@@ -35,7 +37,7 @@ const documents: Documents = {
     "query GetProjects {\n  projects {\n    id\n    name\n  }\n}": types.GetProjectsDocument,
     "subscription MessageAdded($projectId: ID!) {\n  messageAdded(projectId: $projectId) {\n    id\n    content\n    role\n    createdAt\n  }\n}": types.MessageAddedDocument,
     "subscription ProjectNameUpdated($projectId: ID!) {\n  projectNameUpdated(projectId: $projectId) {\n    id\n    name\n  }\n}": types.ProjectNameUpdatedDocument,
-    "mutation SendMessage($projectId: ID!, $content: String!) {\n  sendMessage(projectId: $projectId, content: $content) {\n    id\n    content\n    role\n    createdAt\n  }\n}": types.SendMessageDocument,
+    "mutation SendMessage($projectId: ID!, $content: String!, $activeChartId: ID) {\n  sendMessage(\n    projectId: $projectId\n    content: $content\n    activeChartId: $activeChartId\n  ) {\n    id\n    content\n    role\n    createdAt\n  }\n}": types.SendMessageDocument,
 };
 
 /**
@@ -56,6 +58,10 @@ export function graphql(source: string): unknown;
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "subscription ChartAdded($projectId: ID!) {\n  chartAdded(projectId: $projectId) {\n    id\n    title\n    spec\n    createdAt\n  }\n}"): (typeof documents)["subscription ChartAdded($projectId: ID!) {\n  chartAdded(projectId: $projectId) {\n    id\n    title\n    spec\n    createdAt\n  }\n}"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "subscription ChartUpdated($projectId: ID!) {\n  chartUpdated(projectId: $projectId) {\n    id\n    title\n    spec\n    createdAt\n  }\n}"): (typeof documents)["subscription ChartUpdated($projectId: ID!) {\n  chartUpdated(projectId: $projectId) {\n    id\n    title\n    spec\n    createdAt\n  }\n}"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -91,7 +97,7 @@ export function graphql(source: "subscription ProjectNameUpdated($projectId: ID!
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "mutation SendMessage($projectId: ID!, $content: String!) {\n  sendMessage(projectId: $projectId, content: $content) {\n    id\n    content\n    role\n    createdAt\n  }\n}"): (typeof documents)["mutation SendMessage($projectId: ID!, $content: String!) {\n  sendMessage(projectId: $projectId, content: $content) {\n    id\n    content\n    role\n    createdAt\n  }\n}"];
+export function graphql(source: "mutation SendMessage($projectId: ID!, $content: String!, $activeChartId: ID) {\n  sendMessage(\n    projectId: $projectId\n    content: $content\n    activeChartId: $activeChartId\n  ) {\n    id\n    content\n    role\n    createdAt\n  }\n}"): (typeof documents)["mutation SendMessage($projectId: ID!, $content: String!, $activeChartId: ID) {\n  sendMessage(\n    projectId: $projectId\n    content: $content\n    activeChartId: $activeChartId\n  ) {\n    id\n    content\n    role\n    createdAt\n  }\n}"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

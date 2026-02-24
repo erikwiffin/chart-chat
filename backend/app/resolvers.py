@@ -81,14 +81,14 @@ async def resolve_create_project_from_prompt(_, info, content):
 
 
 @mutation.field("sendMessage")
-async def resolve_send_message(_, info, projectId, content):
+async def resolve_send_message(_, info, projectId, content, activeChartId=None):
     db = info.context["db"]
     message = Message(project_id=int(projectId), content=content, role="user")
     db.add(message)
     db.commit()
     db.refresh(message)
 
-    asyncio.create_task(_generate_assistant_response(int(projectId)))
+    asyncio.create_task(_generate_assistant_response(int(projectId), activeChartId))
 
     return message
 
@@ -110,7 +110,7 @@ async def _generate_and_update_project_name(project_id: int, prompt: str):
         db.close()
 
 
-async def _generate_assistant_response(project_id: int):
+async def _generate_assistant_response(project_id: int, active_chart_id: str | None = None):
     db = SessionLocal()
     try:
         project = db.query(Project).filter(Project.id == project_id).first()
@@ -137,9 +137,18 @@ async def _generate_assistant_response(project_id: int):
             for ds in data_sources
         ]
 
-        content, created_charts = await get_ai_response(messages, data_source_dicts)
+        # Fetch existing charts for tool context
+        existing_db_charts = db.query(Chart).filter(Chart.project_id == project_id).all()
+        existing_chart_dicts = [
+            {"id": str(c.id), "title": c.title, "spec": c.spec}
+            for c in existing_db_charts
+        ]
 
-        # Save and publish charts
+        content, created_charts, modified_charts = await get_ai_response(
+            messages, data_source_dicts, existing_chart_dicts, active_chart_id
+        )
+
+        # Save and publish new charts
         for chart_data in created_charts:
             chart = Chart(
                 project_id=project_id,
@@ -150,6 +159,15 @@ async def _generate_assistant_response(project_id: int):
             db.commit()
             db.refresh(chart)
             await pubsub.publish(f"chart:{project_id}", chart)
+
+        # Update and publish modified charts
+        for modified in modified_charts:
+            chart = db.query(Chart).filter(Chart.id == int(modified["id"])).first()
+            if chart:
+                chart.spec = modified["spec"]
+                db.commit()
+                db.refresh(chart)
+                await pubsub.publish(f"chart_updated:{project_id}", chart)
 
         assistant_msg = Message(project_id=project_id, content=content, role="assistant")
         db.add(assistant_msg)
@@ -195,6 +213,17 @@ async def chart_added_source(obj, info, projectId):
 
 @subscription.field("chartAdded")
 def chart_added_resolver(chart, info, projectId):
+    return chart
+
+
+@subscription.source("chartUpdated")
+async def chart_updated_source(obj, info, projectId):
+    async for chart in pubsub.subscribe(f"chart_updated:{projectId}"):
+        yield chart
+
+
+@subscription.field("chartUpdated")
+def chart_updated_resolver(chart, info, projectId):
     return chart
 
 

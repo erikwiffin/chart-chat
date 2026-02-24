@@ -1,5 +1,5 @@
-mutation SendMessage($projectId: ID!, $content: String!) {
-  sendMessage(projectId: $projectId, content: $content) {
+mutation SendMessage($projectId: ID!, $content: String!, $activeChartId: ID) {
+  sendMessage(projectId: $projectId, content: $content, activeChartId: $activeChartId) {
     id
     content
     role

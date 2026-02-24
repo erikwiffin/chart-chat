@@ -19,6 +19,7 @@ export function Project({ projectId, projectName, onHome }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "success" | "error">("idle");
+  const [activeChartId, setActiveChartId] = useState<string | null>(null);
   const client = useApolloClient();
 
   const onHandleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -104,6 +105,8 @@ export function Project({ projectId, projectName, onHome }: Props) {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      activeChartId={activeChartId}
+      onActiveChartChange={setActiveChartId}
     />
   );
 }
