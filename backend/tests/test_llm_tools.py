@@ -59,6 +59,29 @@ def test_validate_invalid_spec():
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# search_vega_lite_docs
+# ---------------------------------------------------------------------------
+
+
+def test_search_vega_lite_docs_present():
+    tools = make_tools()
+    assert "search_vega_lite_docs" in tools
+
+
+def test_search_vega_lite_docs_returns_string():
+    with patch("app.llm.vega_lite_docs_module.search_vega_lite_docs", return_value="# Vega-Lite doc"):
+        tools = make_tools()
+        result = tools["search_vega_lite_docs"].invoke({"query": "encoding"})
+    assert isinstance(result, str)
+    assert "Vega-Lite" in result
+
+
+# ---------------------------------------------------------------------------
+# list_datasources
+# ---------------------------------------------------------------------------
+
+
 def test_list_datasources_empty():
     tools = make_tools(data_sources=[])
     result = tools["list_datasources"].invoke({})

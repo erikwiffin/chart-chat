@@ -18,6 +18,8 @@ from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
+from . import vega_lite_docs as vega_lite_docs_module
+
 
 def _get_llm() -> ChatOpenAI:
     return ChatOpenAI(
@@ -82,6 +84,9 @@ Use get_chart_spec(chart_id) to retrieve the full spec of a chart.
 Use render_chart(chart_id) to render a chart as an image and visually inspect it.
 Use edit_chart(chart_id, patch) to modify a chart using JSON Patch (RFC 6902).
 
+## Vega-Lite Documentation
+Use search_vega_lite_docs(query) to look up Vega-Lite documentation when you need spec details, encoding, marks, or transforms.
+
 ## Vega Transform Patterns
 - Aggregate: {"transform": [{"aggregate": [{"op": "sum", "field": "n", "as": "total"}], "groupby": ["year"]}]}
 - Fold columns: {"transform": [{"fold": ["col1", "col2"], "as": ["category", "value"]}]}
@@ -102,6 +107,7 @@ Completed steps and results:
 {past_steps}
 
 Based on the results above:
+- Before responding that the task is complete, use render_chart to preview any created or edited chart and confirm it looks correct.
 - If the objective is complete (e.g., charts have been created and the user's question answered), \
 respond with a final Response message summarizing what was accomplished.
 - If more steps are needed, respond with an updated Plan containing only the remaining steps to complete.
@@ -114,6 +120,11 @@ def _build_tools(
     existing_charts: list[dict],
     modified_charts: list[dict],
 ) -> list:
+    @tool
+    def search_vega_lite_docs(query: str) -> str:
+        """Search Vega-Lite documentation. Returns the markdown of the top matching doc."""
+        return vega_lite_docs_module.search_vega_lite_docs(query)
+
     @tool
     def list_datasources() -> str:
         """List available data sources and their data URLs."""
@@ -285,6 +296,7 @@ def _build_tools(
         return f"Chart '{chart_id}' updated successfully."
 
     return [
+        search_vega_lite_docs,
         list_datasources,
         preview_data,
         describe_data,
@@ -304,7 +316,9 @@ def _build_plan_execute_graph(
     status_callback: Callable[[str, str], Coroutine[Any, Any, None]] | None = None,
 ):
     llm = _get_llm()
-    tools = _build_tools(data_sources, collected_charts, existing_charts, modified_charts)
+    tools = _build_tools(
+        data_sources, collected_charts, existing_charts, modified_charts
+    )
 
     # Planner
     planner_prompt = ChatPromptTemplate.from_messages(
@@ -322,9 +336,24 @@ def _build_plan_execute_graph(
     # Executor (ReAct agent)
     executor = create_agent(llm, tools, system_prompt=EXECUTOR_SYSTEM_PROMPT)
 
-    # Replanner
-    replanner_prompt = ChatPromptTemplate.from_template(REPLANNER_TEMPLATE)
-    replanner = replanner_prompt | llm.with_structured_output(Act)
+    # Replanner: agent with only render_chart, then parser to get Act
+    replanner_tools = [t for t in tools if getattr(t, "name", None) == "render_chart"]
+    replanner_agent = create_agent(
+        llm,
+        replanner_tools,
+        system_prompt=(
+            "You are the replanner. You have access to render_chart to preview charts. "
+            "Use it to preview any created or edited chart before concluding the task is complete. "
+            "Then decide: either summarize what was accomplished (task complete) or list remaining steps (more work needed)."
+        ),
+    )
+    act_parser_prompt = ChatPromptTemplate.from_template(
+        "Based on the replanner's conversation below, output Act. "
+        "If the replanner concluded the task is complete, use Response with their summary. "
+        "If they indicated more steps are needed, use Plan with the list of remaining steps.\n\n"
+        "Conversation:\n{conversation}"
+    )
+    act_parser = act_parser_prompt | llm.with_structured_output(Act)
 
     def plan_step(state: PlanExecute):
         plan = planner.invoke({"messages": [("user", state["input"])]})
@@ -339,21 +368,30 @@ def _build_plan_execute_graph(
             await status_callback(task, task)
         past = "\n".join(f"- {s}: {r}" for s, r in state.get("past_steps", []))
         task_input = f"Plan:\n{plan_str}\n\nCompleted steps:\n{past}\n\nExecute: {task}"
-        response = await executor.ainvoke({"messages": [HumanMessage(content=task_input)]})
+        response = await executor.ainvoke(
+            {"messages": [HumanMessage(content=task_input)]}
+        )
         return {"past_steps": [(task, response["messages"][-1].content)]}
 
-    def replan_step(state: PlanExecute):
+    async def replan_step(state: PlanExecute):
         past_steps_str = "\n".join(
             f"- {s}: {r}" for s, r in state.get("past_steps", [])
         )
         plan_str = "\n".join(f"{i+1}. {s}" for i, s in enumerate(state.get("plan", [])))
-        output = replanner.invoke(
-            {
-                "input": state["input"],
-                "plan": plan_str,
-                "past_steps": past_steps_str,
-            }
+        replanner_input = REPLANNER_TEMPLATE.format(
+            input=state["input"],
+            plan=plan_str,
+            past_steps=past_steps_str,
         )
+        response = await replanner_agent.ainvoke(
+            {"messages": [HumanMessage(content=replanner_input)]}
+        )
+        messages = response.get("messages", [])
+        conversation = "\n".join(
+            f"{getattr(m, 'type', type(m).__name__)}: {getattr(m, 'content', str(m))}"
+            for m in messages
+        )
+        output = act_parser.invoke({"conversation": conversation})
         assert isinstance(output, Act)
         if isinstance(output.action, Response):
             return {"response": output.action.response}
@@ -393,7 +431,9 @@ async def get_ai_response(
             if str(chart["id"]) == active_chart_id:
                 active_title = chart["title"]
                 break
-        context = f"\n\n[Context: The user is currently viewing chart ID {active_chart_id}"
+        context = (
+            f"\n\n[Context: The user is currently viewing chart ID {active_chart_id}"
+        )
         if active_title:
             context += f" titled '{active_title}'"
         context += ".]"
@@ -402,7 +442,11 @@ async def get_ai_response(
     collected_charts: list[dict] = []
     modified_charts: list[dict] = []
     graph = _build_plan_execute_graph(
-        data_sources, collected_charts, existing_charts, modified_charts, status_callback
+        data_sources,
+        collected_charts,
+        existing_charts,
+        modified_charts,
+        status_callback,
     )
     result = await graph.ainvoke(
         {

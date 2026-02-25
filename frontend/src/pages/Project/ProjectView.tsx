@@ -61,7 +61,10 @@ export function ProjectView({
         </div>
       )}
 
-      <div style={{ width: `${leftPercent}%` }} className="h-full overflow-hidden">
+      <div
+        style={{ width: `${leftPercent}%` }}
+        className="h-full overflow-hidden"
+      >
         <ChatPanel
           projectId={projectId}
           projectName={projectName}
@@ -72,11 +75,17 @@ export function ProjectView({
 
       <div
         onMouseDown={onHandleMouseDown}
-        className="w-1 flex-shrink-0 cursor-col-resize bg-base-300 hover:bg-primary transition-colors"
+        className="w-1 shrink-0 cursor-col-resize bg-base-300 hover:bg-primary transition-colors"
       />
 
-      <div style={{ width: `${100 - leftPercent}%` }} className="h-full overflow-hidden">
-        <MainPanel projectId={projectId} onActiveChartChange={onActiveChartChange} />
+      <div
+        style={{ width: `${100 - leftPercent}%` }}
+        className="h-full overflow-hidden"
+      >
+        <MainPanel
+          projectId={projectId}
+          onActiveChartChange={onActiveChartChange}
+        />
       </div>
     </div>
   );
