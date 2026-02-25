@@ -116,6 +116,21 @@ async def resolve_stop_generation(_, info, projectId):
     return False
 
 
+@mutation.field("updateChart")
+async def resolve_update_chart(_, info, chartId, spec):
+    db = info.context["db"]
+    chart = db.query(Chart).filter(Chart.id == int(chartId)).first()
+    if not chart:
+        raise ValueError(f"Chart {chartId} not found")
+    parsed_spec = json.loads(spec)
+    parsed_spec.pop("data", None)
+    chart.spec = parsed_spec
+    db.commit()
+    db.refresh(chart)
+    await pubsub.publish(f"chart_updated:{chart.project_id}", chart)
+    return chart
+
+
 async def _generate_and_update_project_name(project_id: int, prompt: str):
     db = SessionLocal()
     try:

@@ -1,0 +1,8 @@
+mutation UpdateChart($chartId: ID!, $spec: String!) {
+  updateChart(chartId: $chartId, spec: $spec) {
+    id
+    title
+    spec
+    createdAt
+  }
+}

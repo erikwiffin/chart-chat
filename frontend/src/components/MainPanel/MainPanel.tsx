@@ -150,7 +150,8 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
         );
       }
       if ("kind" in tab && tab.kind === "chart") {
-        return <ChartDetailTab title={tab.title} spec={tab.spec} />;
+        const chartId = tab.id.replace("chart-", "");
+        return <ChartDetailTab chartId={chartId} title={tab.title} spec={tab.spec} />;
       }
       if ("kind" in tab && tab.kind === "data-source") {
         return (

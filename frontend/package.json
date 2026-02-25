@@ -12,7 +12,11 @@
   },
   "dependencies": {
     "@apollo/client": "^4.1.5",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/state": "^6.5.4",
+    "@codemirror/view": "^6.39.15",
     "@tailwindcss/vite": "^4.2.1",
+    "codemirror": "^6.0.2",
     "graphql": "^16.12.0",
     "graphql-ws": "^5.14.0",
     "react": "^19.2.0",

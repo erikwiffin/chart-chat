@@ -27,6 +27,7 @@ type Documents = {
     "mutation SendMessage($projectId: ID!, $content: String!, $activeChartId: ID) {\n  sendMessage(\n    projectId: $projectId\n    content: $content\n    activeChartId: $activeChartId\n  ) {\n    id\n    content\n    role\n    createdAt\n  }\n}": typeof types.SendMessageDocument,
     "subscription StatusUpdate($projectId: ID!) {\n  statusUpdate(projectId: $projectId) {\n    message\n    task\n  }\n}": typeof types.StatusUpdateDocument,
     "mutation StopGeneration($projectId: ID!) {\n  stopGeneration(projectId: $projectId)\n}": typeof types.StopGenerationDocument,
+    "mutation UpdateChart($chartId: ID!, $spec: String!) {\n  updateChart(chartId: $chartId, spec: $spec) {\n    id\n    title\n    spec\n    createdAt\n  }\n}": typeof types.UpdateChartDocument,
 };
 const documents: Documents = {
     "subscription ChartAdded($projectId: ID!) {\n  chartAdded(projectId: $projectId) {\n    id\n    title\n    spec\n    createdAt\n  }\n}": types.ChartAddedDocument,
@@ -42,6 +43,7 @@ const documents: Documents = {
     "mutation SendMessage($projectId: ID!, $content: String!, $activeChartId: ID) {\n  sendMessage(\n    projectId: $projectId\n    content: $content\n    activeChartId: $activeChartId\n  ) {\n    id\n    content\n    role\n    createdAt\n  }\n}": types.SendMessageDocument,
     "subscription StatusUpdate($projectId: ID!) {\n  statusUpdate(projectId: $projectId) {\n    message\n    task\n  }\n}": types.StatusUpdateDocument,
     "mutation StopGeneration($projectId: ID!) {\n  stopGeneration(projectId: $projectId)\n}": types.StopGenerationDocument,
+    "mutation UpdateChart($chartId: ID!, $spec: String!) {\n  updateChart(chartId: $chartId, spec: $spec) {\n    id\n    title\n    spec\n    createdAt\n  }\n}": types.UpdateChartDocument,
 };
 
 /**
@@ -110,6 +112,10 @@ export function graphql(source: "subscription StatusUpdate($projectId: ID!) {\n 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "mutation StopGeneration($projectId: ID!) {\n  stopGeneration(projectId: $projectId)\n}"): (typeof documents)["mutation StopGeneration($projectId: ID!) {\n  stopGeneration(projectId: $projectId)\n}"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "mutation UpdateChart($chartId: ID!, $spec: String!) {\n  updateChart(chartId: $chartId, spec: $spec) {\n    id\n    title\n    spec\n    createdAt\n  }\n}"): (typeof documents)["mutation UpdateChart($chartId: ID!, $spec: String!) {\n  updateChart(chartId: $chartId, spec: $spec) {\n    id\n    title\n    spec\n    createdAt\n  }\n}"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};
