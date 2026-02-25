@@ -3,8 +3,7 @@ import json
 import operator
 import os
 import re
-from collections.abc import Callable, Coroutine
-from typing import Annotated, Any, List, Literal, Tuple, Union
+from typing import Annotated, List, Literal, Protocol, Tuple, Union
 
 import altair as alt
 import jsonpatch
@@ -19,6 +18,12 @@ from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
 from . import vega_lite_docs as vega_lite_docs_module
+
+
+class StatusCallback(Protocol):
+    """Protocol for status callbacks: async callable with named params task and message."""
+
+    async def __call__(self, task: str, message: str) -> None: ...
 
 
 def _get_llm() -> ChatOpenAI:
@@ -40,6 +45,22 @@ def _validate_vega_lite_spec(spec: dict) -> str | None:
         return None
     except Exception as e:
         return str(e)
+
+
+async def _summarize_task(task: str) -> str:
+    """Use a brief LLM call to summarize a task into a 4-5 word present-participle phrase."""
+    llm = _get_llm()
+    msg = HumanMessage(
+        content=(
+            "Summarize this task in 4-5 words as a present-participle phrase "
+            "(e.g., 'drawing bar chart', 'reviewing data'). "
+            f"Task: {task}\n\nRespond with only the short phrase, no punctuation."
+        )
+    )
+    response = await llm.ainvoke([msg])
+    content = response.content
+    assert isinstance(content, str)
+    return content.strip()
 
 
 class PlanExecute(TypedDict):
@@ -314,7 +335,7 @@ def _build_plan_execute_graph(
     collected_charts: list[dict],
     existing_charts: list[dict],
     modified_charts: list[dict],
-    status_callback: Callable[[str, str], Coroutine[Any, Any, None]] | None = None,
+    status_callback: StatusCallback | None = None,
 ):
     llm = _get_llm()
     tools = _build_tools(
@@ -366,7 +387,8 @@ def _build_plan_execute_graph(
         plan_str = "\n".join(f"{i+1}. {s}" for i, s in enumerate(plan))
         task = plan[0]
         if status_callback:
-            await status_callback(task, task)
+            summary = await _summarize_task(task)
+            await status_callback(task, summary)
         past = "\n".join(f"- {s}: {r}" for s, r in state.get("past_steps", []))
         task_input = f"Plan:\n{plan_str}\n\nCompleted steps:\n{past}\n\nExecute: {task}"
         response = await executor.ainvoke(
@@ -417,7 +439,7 @@ async def get_ai_response(
     data_sources: list[dict],
     existing_charts: list[dict] | None = None,
     active_chart_id: str | None = None,
-    status_callback: Callable[[str, str], Coroutine[Any, Any, None]] | None = None,
+    status_callback: StatusCallback | None = None,
 ) -> tuple[str, list[dict], list[dict]]:
     user_input = next(
         (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
