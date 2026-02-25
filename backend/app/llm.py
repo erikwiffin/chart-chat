@@ -76,6 +76,7 @@ Reference data in Vega-Lite specs via URL: {"data": {"url": "/api/data-sources/{
 
 ## Chart Creation
 Call create_chart(title, spec) with a complete valid Vega-Lite specification.
+Always set "$schema": "https://vega.github.io/schema/vega-lite/v6.json" in every spec.
 Always use Vega transforms to process data — never use pandas or Python data manipulation.
 
 ## Chart Inspection and Editing
