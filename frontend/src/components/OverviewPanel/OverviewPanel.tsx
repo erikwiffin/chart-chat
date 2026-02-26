@@ -12,6 +12,7 @@ type Chart = {
   id: string;
   title: string;
   spec: string;
+  thumbnailUrl?: string | null;
 };
 
 type DataSource = {

@@ -6,7 +6,7 @@ from ariadne.asgi import GraphQL
 from ariadne.asgi.handlers import GraphQLTransportWSHandler
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from .database import Base, SessionLocal, engine
 from .models import DataSource, Project
@@ -19,7 +19,7 @@ from .resolvers import (
     query,
     subscription,
 )
-from .storage import get_data_source_preview, parse_csv, save_upload
+from .storage import THUMBNAILS_DIR, get_data_source_preview, parse_csv, save_upload
 
 Base.metadata.create_all(bind=engine)
 
@@ -123,3 +123,11 @@ async def upload_data_source(project_id: int, file: UploadFile):
         }
     finally:
         db.close()
+
+
+@app.get("/api/charts/{chart_id}/thumbnail")
+async def get_chart_thumbnail(chart_id: int):
+    path = THUMBNAILS_DIR / f"chart_{chart_id}.png"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Thumbnail not found.")
+    return FileResponse(path, media_type="image/png")

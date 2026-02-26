@@ -69,4 +69,5 @@ type Chart {
     title: String!
     spec: String!
     createdAt: String!
+    thumbnailUrl: String
 }

@@ -1,11 +1,26 @@
 import csv
 import io
+import json
 import os
 from pathlib import Path
 
 import pandas as pd
+import vl_convert as vlc
 
 UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", "uploads"))
+THUMBNAILS_DIR = UPLOADS_DIR / "thumbnails"
+
+
+def generate_chart_thumbnail(spec: dict, sample_rows: list | None, chart_id: int) -> None:
+    """Render a chart spec to PNG and save it. sample_rows injected as inline data if provided."""
+    spec = dict(spec)
+    if sample_rows:
+        spec["data"] = {"values": sample_rows}
+    elif "data" in spec:
+        del spec["data"]
+    THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
+    png_bytes = vlc.vegalite_to_png(json.dumps(spec))
+    (THUMBNAILS_DIR / f"chart_{chart_id}.png").write_bytes(png_bytes)
 
 
 def get_project_upload_dir(project_uuid: str) -> Path:

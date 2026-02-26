@@ -5,6 +5,7 @@ query GetProjectCharts($id: ID!) {
       title
       spec
       createdAt
+      thumbnailUrl
     }
   }
 }

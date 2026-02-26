@@ -4,5 +4,6 @@ subscription ChartUpdated($projectId: ID!) {
     title
     spec
     createdAt
+    thumbnailUrl
   }
 }

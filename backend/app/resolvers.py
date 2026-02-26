@@ -7,6 +7,7 @@ from .database import SessionLocal
 from .llm import generate_project_name, get_ai_response
 from .models import Chart, DataSource, Message, Project, User
 from .pubsub import pubsub
+from .storage import THUMBNAILS_DIR, generate_chart_thumbnail
 
 query = QueryType()
 mutation = MutationType()
@@ -127,8 +128,21 @@ async def resolve_update_chart(_, info, chartId, spec):
     chart.spec = parsed_spec
     db.commit()
     db.refresh(chart)
+    await _update_thumbnail(chart, db)
     await pubsub.publish(f"chart_updated:{chart.project_id}", chart)
     return chart
+
+
+async def _update_thumbnail(chart: Chart, db):
+    sample_rows = None
+    if chart.data_source_id:
+        ds = db.query(DataSource).filter(DataSource.id == chart.data_source_id).first()
+        if ds:
+            sample_rows = ds.sample_rows
+    try:
+        await asyncio.to_thread(generate_chart_thumbnail, chart.spec, sample_rows, chart.id)
+    except Exception as e:
+        print(f"Thumbnail generation failed for chart {chart.id}: {e}")
 
 
 async def _generate_and_update_project_name(project_id: int, prompt: str):
@@ -224,6 +238,7 @@ async def _generate_assistant_response(
             db.add(chart)
             db.commit()
             db.refresh(chart)
+            await _update_thumbnail(chart, db)
             await pubsub.publish(f"chart:{project_id}", chart)
 
         # Update and publish modified charts
@@ -237,6 +252,7 @@ async def _generate_assistant_response(
                     chart.data_source_id = modified["data_source_id"]
                 db.commit()
                 db.refresh(chart)
+                await _update_thumbnail(chart, db)
                 await pubsub.publish(f"chart_updated:{project_id}", chart)
 
         assistant_msg = Message(
@@ -362,3 +378,9 @@ def resolve_chart_spec(obj, *_):
 @chart_type.field("createdAt")
 def resolve_chart_created_at(obj, *_):
     return obj.created_at.isoformat()
+
+
+@chart_type.field("thumbnailUrl")
+def resolve_chart_thumbnail_url(obj, *_):
+    path = THUMBNAILS_DIR / f"chart_{obj.id}.png"
+    return f"/api/charts/{obj.id}/thumbnail" if path.exists() else None

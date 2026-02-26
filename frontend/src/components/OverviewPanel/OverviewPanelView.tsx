@@ -1,7 +1,10 @@
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+
 type Chart = {
   id: string;
   title: string;
   spec: string;
+  thumbnailUrl?: string | null;
 };
 
 type DataSource = {
@@ -74,13 +77,22 @@ export function OverviewPanelView({
           <h2 className="text-sm font-semibold text-base-content/70 mb-2 uppercase tracking-wide">
             Charts
           </h2>
-          <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {charts.map((chart) => (
               <button
                 key={chart.id}
                 className="card bg-base-200 shadow text-left hover:bg-base-300 transition-colors"
                 onClick={() => onOpenChart(chart)}
               >
+                {chart.thumbnailUrl && (
+                  <figure>
+                    <img
+                      src={API_BASE_URL.replace(/\/$/, "") + chart.thumbnailUrl}
+                      alt={chart.title}
+                      className="w-full object-contain rounded-t"
+                    />
+                  </figure>
+                )}
                 <div className="card-body py-3 px-4">
                   <span className="font-medium text-sm">{chart.title}</span>
                 </div>
