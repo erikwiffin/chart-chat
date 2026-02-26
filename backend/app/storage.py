@@ -11,11 +11,17 @@ UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", "uploads"))
 THUMBNAILS_DIR = UPLOADS_DIR / "thumbnails"
 
 
-def generate_chart_thumbnail(spec: dict, sample_rows: list | None, chart_id: int) -> None:
-    """Render a chart spec to PNG and save it. sample_rows injected as inline data if provided."""
+def generate_chart_thumbnail(spec: dict, file_path: str | None, chart_id: int) -> None:
+    """Render a chart spec to PNG and save it. Full CSV data injected as inline data if file_path provided."""
     spec = dict(spec)
-    if sample_rows:
-        spec["data"] = {"values": sample_rows}
+    if file_path:
+        try:
+            df = pd.read_csv(file_path)
+            rows = [{k: _coerce(v) for k, v in row.items()} for row in df.to_dict(orient="records")]
+            spec["data"] = {"values": rows}
+        except Exception:
+            if "data" in spec:
+                del spec["data"]
     elif "data" in spec:
         del spec["data"]
     THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)

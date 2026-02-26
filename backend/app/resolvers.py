@@ -95,9 +95,7 @@ async def resolve_send_message(_, info, projectId, content, activeChartId=None):
     db.commit()
     db.refresh(message)
 
-    task = asyncio.create_task(
-        _generate_assistant_response(project_id, activeChartId)
-    )
+    task = asyncio.create_task(_generate_assistant_response(project_id, activeChartId))
     _active_tasks[project_id] = task
 
     # If this is the first message, generate project name from prompt (same as createProjectFromPrompt)
@@ -134,13 +132,15 @@ async def resolve_update_chart(_, info, chartId, spec):
 
 
 async def _update_thumbnail(chart: Chart, db):
-    sample_rows = None
+    file_path = None
     if chart.data_source_id:
         ds = db.query(DataSource).filter(DataSource.id == chart.data_source_id).first()
         if ds:
-            sample_rows = ds.sample_rows
+            file_path = ds.file_path
     try:
-        await asyncio.to_thread(generate_chart_thumbnail, chart.spec, sample_rows, chart.id)
+        await asyncio.to_thread(
+            generate_chart_thumbnail, chart.spec, file_path, chart.id
+        )
     except Exception as e:
         print(f"Thumbnail generation failed for chart {chart.id}: {e}")
 
@@ -185,6 +185,7 @@ async def _generate_assistant_response(
                 "name": ds.name,
                 "columns": ds.columns,
                 "sample_rows": ds.sample_rows or [],
+                "file_path": ds.file_path,
                 "url": f"/api/data-sources/{ds.id}/data",
             }
             for ds in data_sources

@@ -7,6 +7,7 @@ from typing import Annotated, List, Literal, Protocol, Tuple, Union
 
 import altair as alt
 import jsonpatch
+import pandas as pd
 import vl_convert as vlc
 from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage
@@ -18,6 +19,7 @@ from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
 from . import vega_lite_docs as vega_lite_docs_module
+from .storage import _coerce
 
 
 class StatusCallback(Protocol):
@@ -261,7 +263,15 @@ def _build_tools(
         if chart_ds_id:
             for ds in data_sources:
                 if ds["id"] == chart_ds_id:
-                    spec["data"] = {"values": ds["sample_rows"]}
+                    try:
+                        df = pd.read_csv(ds["file_path"])
+                        rows = [
+                            {k: _coerce(v) for k, v in row.items()}
+                            for row in df.to_dict(orient="records")
+                        ]
+                        spec["data"] = {"values": rows}
+                    except Exception:
+                        pass
                     break
         spec_json = json.dumps(spec)
         png_bytes = vlc.vegalite_to_png(spec_json)
@@ -367,7 +377,9 @@ def _build_plan_execute_graph(
     replanner_tools = [tools["render_chart"], tools["get_conversation_history"]]
 
     # Planner: agent with history tool, then parser to get Plan
-    planner_agent = create_agent(llm, planner_tools, system_prompt=PLANNER_SYSTEM_PROMPT)
+    planner_agent = create_agent(
+        llm, planner_tools, system_prompt=PLANNER_SYSTEM_PROMPT
+    )
     plan_parser_prompt = ChatPromptTemplate.from_template(
         "Based on the planner's response below, extract the ordered steps as a Plan.\n\n"
         "Planner response:\n{response}"
