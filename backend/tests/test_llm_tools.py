@@ -30,13 +30,36 @@ VALID_SPEC_WITH_DATA = {
 
 
 def make_tools(data_sources=None, collected=None, existing=None, modified=None):
-    tools_list = _build_tools(
+    return _build_tools(
+        [],
         data_sources if data_sources is not None else [],
         collected if collected is not None else [],
         existing if existing is not None else [],
         modified if modified is not None else [],
     )
-    return {t.name: t for t in tools_list}
+
+
+# ---------------------------------------------------------------------------
+# get_conversation_history
+# ---------------------------------------------------------------------------
+
+
+def test_get_conversation_history_empty():
+    tools = make_tools()
+    result = tools["get_conversation_history"].invoke({})
+    assert "No conversation history" in result
+
+
+def test_get_conversation_history_returns_recent():
+    msgs = [
+        {"role": "user", "content": "hello"},
+        {"role": "assistant", "content": "hi"},
+        {"role": "user", "content": "make a chart"},
+    ]
+    tools = _build_tools(msgs, [], [], [], [])
+    result = tools["get_conversation_history"].invoke({"n": 2})
+    assert "make a chart" in result
+    assert "hello" not in result  # only last 2
 
 
 # ---------------------------------------------------------------------------

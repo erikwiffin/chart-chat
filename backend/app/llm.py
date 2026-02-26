@@ -137,11 +137,21 @@ respond with a final Response message summarizing what was accomplished.
 
 
 def _build_tools(
+    messages: list[dict],
     data_sources: list[dict],
     collected_charts: list[dict],
     existing_charts: list[dict],
     modified_charts: list[dict],
-) -> list:
+) -> dict:
+    @tool
+    def get_conversation_history(n: int = 5) -> str:
+        """Get the last n messages from the conversation history (default 5).
+        Use this when the user's request is ambiguous and prior context would help."""
+        recent = messages[-n:]
+        if not recent:
+            return "No conversation history available."
+        return "\n".join(f"{m['role']}: {m['content']}" for m in recent)
+
     @tool
     def search_vega_lite_docs(query: str) -> str:
         """Search Vega-Lite documentation. Returns the markdown of the top matching doc."""
@@ -317,20 +327,29 @@ def _build_tools(
 
         return f"Chart '{chart_id}' updated successfully."
 
-    return [
-        search_vega_lite_docs,
-        list_datasources,
-        preview_data,
-        describe_data,
-        create_chart,
-        list_charts,
-        get_chart_spec,
-        render_chart,
-        edit_chart,
-    ]
+    return {
+        "get_conversation_history": get_conversation_history,
+        "search_vega_lite_docs": search_vega_lite_docs,
+        "list_datasources": list_datasources,
+        "preview_data": preview_data,
+        "describe_data": describe_data,
+        "create_chart": create_chart,
+        "list_charts": list_charts,
+        "get_chart_spec": get_chart_spec,
+        "render_chart": render_chart,
+        "edit_chart": edit_chart,
+    }
+
+
+PLANNER_SYSTEM_PROMPT = (
+    "You are a planning assistant. Break the user's request into concrete, ordered steps. "
+    "Each step should be independently executable. No superfluous steps. "
+    "If the user's request is ambiguous, use get_conversation_history to look up prior context."
+)
 
 
 def _build_plan_execute_graph(
+    messages: list[dict],
     data_sources: list[dict],
     collected_charts: list[dict],
     existing_charts: list[dict],
@@ -339,27 +358,26 @@ def _build_plan_execute_graph(
 ):
     llm = _get_llm()
     tools = _build_tools(
-        data_sources, collected_charts, existing_charts, modified_charts
+        messages, data_sources, collected_charts, existing_charts, modified_charts
     )
 
-    # Planner
-    planner_prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "Break the user's request into concrete, ordered steps. "
-                "Each step should be independently executable. No superfluous steps.",
-            ),
-            ("placeholder", "{messages}"),
-        ]
+    # Tool subsets
+    executor_tools = [v for k, v in tools.items() if k != "get_conversation_history"]
+    planner_tools = [tools["get_conversation_history"]]
+    replanner_tools = [tools["render_chart"], tools["get_conversation_history"]]
+
+    # Planner: agent with history tool, then parser to get Plan
+    planner_agent = create_agent(llm, planner_tools, system_prompt=PLANNER_SYSTEM_PROMPT)
+    plan_parser_prompt = ChatPromptTemplate.from_template(
+        "Based on the planner's response below, extract the ordered steps as a Plan.\n\n"
+        "Planner response:\n{response}"
     )
-    planner = planner_prompt | llm.with_structured_output(Plan)
+    plan_parser = plan_parser_prompt | llm.with_structured_output(Plan)
 
     # Executor (ReAct agent)
-    executor = create_agent(llm, tools, system_prompt=EXECUTOR_SYSTEM_PROMPT)
+    executor = create_agent(llm, executor_tools, system_prompt=EXECUTOR_SYSTEM_PROMPT)
 
-    # Replanner: agent with only render_chart, then parser to get Act
-    replanner_tools = [t for t in tools if getattr(t, "name", None) == "render_chart"]
+    # Replanner: agent with render_chart + history, then parser to get Act
     replanner_agent = create_agent(
         llm,
         replanner_tools,
@@ -377,8 +395,12 @@ def _build_plan_execute_graph(
     )
     act_parser = act_parser_prompt | llm.with_structured_output(Act)
 
-    def plan_step(state: PlanExecute):
-        plan = planner.invoke({"messages": [("user", state["input"])]})
+    async def plan_step(state: PlanExecute):
+        response = await planner_agent.ainvoke(
+            {"messages": [HumanMessage(content=state["input"])]}
+        )
+        last_msg = response["messages"][-1].content
+        plan = plan_parser.invoke({"response": last_msg})
         assert isinstance(plan, Plan)
         return {"plan": plan.steps}
 
@@ -465,6 +487,7 @@ async def get_ai_response(
     collected_charts: list[dict] = []
     modified_charts: list[dict] = []
     graph = _build_plan_execute_graph(
+        messages,
         data_sources,
         collected_charts,
         existing_charts,
