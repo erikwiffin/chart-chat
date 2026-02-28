@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useMutation } from "@apollo/client/react";
 import { compile } from "vega-lite";
 import { UpdateChartDocument } from "../../__generated__/graphql";
@@ -12,27 +12,12 @@ type Props = {
 
 export function ChartDetailTab({ chartId, title, spec }: Props) {
   const [mode, setMode] = useState<"view" | "edit">("view");
-  const [editSpec, setEditSpec] = useState(spec);
+  const [editSpec, setEditSpec] = useState(
+    JSON.stringify(JSON.parse(spec), null, 4),
+  );
   const [validationError, setValidationError] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevCommittedRef = useRef(spec);
 
   const [updateChart, { loading: isSaving }] = useMutation(UpdateChartDocument);
-
-  // Sync incoming spec prop when not diverged from the committed spec
-  useEffect(() => {
-    if (editSpec === prevCommittedRef.current) {
-      setEditSpec(spec);
-    }
-    prevCommittedRef.current = spec;
-  }, [spec]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Cleanup debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
 
   function validate(value: string): string | null {
     try {
@@ -44,22 +29,13 @@ export function ChartDetailTab({ chartId, title, spec }: Props) {
     }
   }
 
-  function handleToggleMode() {
-    if (mode === "view") {
-      setEditSpec(spec);
-      setValidationError(null);
-      setMode("edit");
-    } else {
-      handleCancel();
-    }
-  }
-
   function handleSpecChange(newValue: string) {
     setEditSpec(newValue);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setValidationError(validate(newValue));
-    }, 1000);
+    setValidationError(validate(newValue));
+  }
+
+  function handleEdit() {
+    setMode("edit");
   }
 
   async function handleSave() {
@@ -73,7 +49,6 @@ export function ChartDetailTab({ chartId, title, spec }: Props) {
   }
 
   function handleCancel() {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
     setMode("view");
     setEditSpec(spec);
     setValidationError(null);
@@ -96,7 +71,7 @@ export function ChartDetailTab({ chartId, title, spec }: Props) {
       mode={mode}
       validationError={validationError}
       isSaving={isSaving}
-      onToggleMode={handleToggleMode}
+      onEdit={handleEdit}
       onSpecChange={handleSpecChange}
       onSave={handleSave}
       onCancel={handleCancel}
