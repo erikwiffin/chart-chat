@@ -1,5 +1,6 @@
 query GetProjectCharts($id: ID!) {
   project(id: $id) {
+    id
     charts {
       id
       title
