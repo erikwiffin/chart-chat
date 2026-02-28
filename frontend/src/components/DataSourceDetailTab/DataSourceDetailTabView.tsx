@@ -83,7 +83,9 @@ export function DataSourceDetailTabView({ name, status, data }: Props) {
               <tbody>
                 {describe_rows.map((row, i) => (
                   <tr key={i}>
-                    <td>{String(row._stat ?? "")}</td>
+                    <td>
+                      <strong>{String(row._stat ?? "")}</strong>
+                    </td>
                     {describe_columns.map((c) => (
                       <td key={c}>{row[c] == null ? "" : String(row[c])}</td>
                     ))}

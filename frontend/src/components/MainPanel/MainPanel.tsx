@@ -17,7 +17,13 @@ type Props = {
 };
 
 type Chart = { id: string; title: string; spec: string };
-type DataSource = { id: string; name: string; sourceType: string; columns: string[]; rowCount: number };
+type DataSource = {
+  id: string;
+  name: string;
+  sourceType: string;
+  columns: string[];
+  rowCount: number;
+};
 
 export function MainPanel({ projectId, onActiveChartChange }: Props) {
   const [tabs, setTabs] = useState<AppTab[]>([
@@ -74,7 +80,7 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
             };
           }
           return tab;
-        })
+        }),
       );
     },
   });
@@ -125,7 +131,7 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
         return next;
       });
     },
-    [activeTabId]
+    [activeTabId],
   );
 
   const reorderTabs = useCallback((fromIndex: number, toIndex: number) => {
@@ -151,11 +157,14 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
       }
       if ("kind" in tab && tab.kind === "chart") {
         const chartId = tab.id.replace("chart-", "");
-        return <ChartDetailTab chartId={chartId} title={tab.title} spec={tab.spec} />;
+        return (
+          <ChartDetailTab chartId={chartId} title={tab.title} spec={tab.spec} />
+        );
       }
       if ("kind" in tab && tab.kind === "data-source") {
         return (
           <DataSourceDetailTab
+            key={tab.dataSourceId}
             dataSourceId={tab.dataSourceId}
             name={tab.name}
           />
@@ -163,7 +172,7 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
       }
       return null;
     },
-    [projectId, openChartTab, openDataSourceTab]
+    [projectId, openChartTab, openDataSourceTab],
   );
 
   return (

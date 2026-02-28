@@ -1,6 +1,6 @@
+import logging
 import os
 
-import pandas as pd
 from ariadne import load_schema_from_path, make_executable_schema
 from ariadne.asgi import GraphQL
 from ariadne.asgi.handlers import GraphQLTransportWSHandler
@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
+from .data import get_data_source_preview, read_csv_dataframe
 from .database import Base, SessionLocal, engine
 from .models import DataSource, Project
 from .resolvers import (
@@ -19,11 +20,15 @@ from .resolvers import (
     query,
     subscription,
 )
-from .storage import THUMBNAILS_DIR, get_data_source_preview, parse_csv, save_upload
+from .storage import THUMBNAILS_DIR, parse_csv, save_upload
+
+logging.basicConfig(level=logging.INFO)
 
 Base.metadata.create_all(bind=engine)
 
-type_defs = load_schema_from_path(os.path.join(os.path.dirname(__file__), "schema.graphql"))
+type_defs = load_schema_from_path(
+    os.path.join(os.path.dirname(__file__), "schema.graphql")
+)
 
 schema = make_executable_schema(
     type_defs,
@@ -70,7 +75,7 @@ async def get_data_source_data(data_source_id: int):
         ds = db.query(DataSource).filter(DataSource.id == data_source_id).first()
         if not ds:
             raise HTTPException(status_code=404, detail="Data source not found.")
-        df = pd.read_csv(ds.file_path)
+        df = read_csv_dataframe(ds.file_path)
         return JSONResponse(df.to_dict(orient="records"))
     finally:
         db.close()

@@ -3,11 +3,13 @@ import json
 
 from ariadne import MutationType, ObjectType, QueryType, SubscriptionType
 
+from .charts import generate_chart_thumbnail
 from .database import SessionLocal
-from .llm import generate_project_name, get_ai_response
+from .llm import get_ai_response
+from .llm.generate_project_name import generate_project_name
 from .models import Chart, DataSource, Message, Project, User
 from .pubsub import pubsub
-from .storage import THUMBNAILS_DIR, generate_chart_thumbnail
+from .storage import THUMBNAILS_DIR
 
 query = QueryType()
 mutation = MutationType()
@@ -175,86 +177,35 @@ async def _generate_assistant_response(
             {"role": msg.role, "content": msg.content} for msg in project.messages
         ]
 
-        # Build data source context for tools
         data_sources = (
             db.query(DataSource).filter(DataSource.project_id == project_id).all()
         )
-        data_source_dicts = [
-            {
-                "id": ds.id,
-                "name": ds.name,
-                "columns": ds.columns,
-                "sample_rows": ds.sample_rows or [],
-                "file_path": ds.file_path,
-                "url": f"/api/data-sources/{ds.id}/data",
-            }
-            for ds in data_sources
-        ]
 
-        # Fetch existing charts for tool context
-        existing_db_charts = (
-            db.query(Chart).filter(Chart.project_id == project_id).all()
-        )
-        existing_chart_dicts = [
-            {
-                "id": str(c.id),
-                "title": c.title,
-                "spec": {
-                    **c.spec,
-                    **(
-                        {"data": {"url": f"/api/data-sources/{c.data_source_id}/data"}}
-                        if c.data_source_id
-                        else {}
-                    ),
-                },
-                "data_source_id": c.data_source_id,
-            }
-            for c in existing_db_charts
-        ]
+        existing_charts = db.query(Chart).filter(Chart.project_id == project_id).all()
 
         async def on_status(task: str, message: str):
             await pubsub.publish(
                 f"status:{project_id}", {"task": task, "message": message}
             )
 
-        content, created_charts, modified_charts = await get_ai_response(
+        content, ctx = await get_ai_response(
             messages,
-            data_source_dicts,
-            existing_chart_dicts,
+            data_sources,
+            existing_charts,
             active_chart_id,
             status_callback=on_status,
         )
 
-        # Save and publish new charts
-        for chart_data in created_charts:
-            spec = dict(chart_data["spec"])
-            spec.pop("data", None)
-            data_source_id = chart_data.get("data_source_id")
-            chart = Chart(
-                project_id=project_id,
-                title=chart_data["title"],
-                spec=spec,
-                data_source_id=data_source_id,
-            )
+        # Save new charts and update modified charts
+        for chart in ctx.charts:
+            if chart.id is None:
+                # New chart created by tools
+                chart.project_id = project_id
             db.add(chart)
             db.commit()
             db.refresh(chart)
             await _update_thumbnail(chart, db)
             await pubsub.publish(f"chart:{project_id}", chart)
-
-        # Update and publish modified charts
-        for modified in modified_charts:
-            chart = db.query(Chart).filter(Chart.id == int(modified["id"])).first()
-            if chart:
-                spec = dict(modified["spec"])
-                spec.pop("data", None)
-                chart.spec = spec
-                if modified.get("data_source_id") is not None:
-                    chart.data_source_id = modified["data_source_id"]
-                db.commit()
-                db.refresh(chart)
-                await _update_thumbnail(chart, db)
-                await pubsub.publish(f"chart_updated:{project_id}", chart)
 
         assistant_msg = Message(
             project_id=project_id, content=content, role="assistant"

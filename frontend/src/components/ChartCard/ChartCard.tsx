@@ -22,20 +22,17 @@ export function ChartCard({ title, spec }: Props) {
         data?: { url?: string };
       };
       const dataUrl = parsedSpec.data?.url;
-      if (
-        typeof dataUrl === "string" &&
-        dataUrl.startsWith("/")
-      ) {
+      if (typeof dataUrl === "string" && dataUrl.startsWith("/")) {
         parsedSpec.data = {
           ...parsedSpec.data,
           url: API_BASE_URL.replace(/\/$/, "") + dataUrl,
         };
       }
-      embed(containerRef.current, parsedSpec as VisualizationSpec, { actions: false }).then(
-        (result) => {
-          view = result.view;
-        }
-      );
+      embed(containerRef.current, parsedSpec as VisualizationSpec, {
+        actions: false,
+      }).then((result) => {
+        view = result.view;
+      });
     } catch (e) {
       console.error("Failed to render chart", e);
     }
@@ -49,7 +46,9 @@ export function ChartCard({ title, spec }: Props) {
     <div className="card bg-base-200 shadow mb-4">
       <div className="card-body">
         <h3 className="card-title text-sm">{title}</h3>
-        <div ref={containerRef} />
+        <div className="h-96 w-full">
+          <div ref={containerRef} className="h-full w-full" />
+        </div>
       </div>
     </div>
   );
