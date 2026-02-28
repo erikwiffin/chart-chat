@@ -3,12 +3,14 @@ import { ChartSpecEditor } from "../ChartSpecEditor/ChartSpecEditor";
 
 type Props = {
   title: string;
+  editTitle: string;
   committedSpec: string;
   editSpec: string;
   mode: "view" | "edit";
   validationError: string | null;
   isSaving: boolean;
   onEdit: () => void;
+  onTitleChange: (newTitle: string) => void;
   onSpecChange: (newSpec: string) => void;
   onSave: () => void;
   onCancel: () => void;
@@ -17,12 +19,14 @@ type Props = {
 
 export function ChartDetailTabView({
   title,
+  editTitle,
   committedSpec,
   editSpec,
   mode,
   validationError,
   isSaving,
   onEdit,
+  onTitleChange,
   onSpecChange,
   onSave,
   onCancel,
@@ -73,11 +77,19 @@ export function ChartDetailTabView({
         {mode === "view" ? (
           <ChartCard title={title} spec={committedSpec} />
         ) : (
-          <ChartSpecEditor
-            value={editSpec}
-            onChange={onSpecChange}
-            validationError={validationError}
-          />
+          <>
+            <input
+              type="text"
+              className="input input-sm w-full"
+              value={editTitle}
+              onChange={(e) => onTitleChange(e.target.value)}
+            />
+            <ChartSpecEditor
+              value={editSpec}
+              onChange={onSpecChange}
+              validationError={validationError}
+            />
+          </>
         )}
       </div>
     </div>

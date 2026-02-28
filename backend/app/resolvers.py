@@ -118,13 +118,14 @@ async def resolve_stop_generation(_, info, projectId):
 
 
 @mutation.field("updateChart")
-async def resolve_update_chart(_, info, chartId, spec):
+async def resolve_update_chart(_, info, chartId, title, spec):
     db = info.context["db"]
     chart = db.query(Chart).filter(Chart.id == int(chartId)).first()
     if not chart:
         raise ValueError(f"Chart {chartId} not found")
     parsed_spec = json.loads(spec)
     parsed_spec.pop("data", None)
+    chart.title = title
     chart.spec = parsed_spec
     db.commit()
     db.refresh(chart)

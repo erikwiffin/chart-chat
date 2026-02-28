@@ -12,6 +12,7 @@ type Props = {
 
 export function ChartDetailTab({ chartId, title, spec }: Props) {
   const [mode, setMode] = useState<"view" | "edit">("view");
+  const [editTitle, setEditTitle] = useState(title);
   const [editSpec, setEditSpec] = useState(
     JSON.stringify(JSON.parse(spec), null, 4),
   );
@@ -29,6 +30,10 @@ export function ChartDetailTab({ chartId, title, spec }: Props) {
     }
   }
 
+  function handleTitleChange(newValue: string) {
+    setEditTitle(newValue);
+  }
+
   function handleSpecChange(newValue: string) {
     setEditSpec(newValue);
     setValidationError(validate(newValue));
@@ -44,7 +49,9 @@ export function ChartDetailTab({ chartId, title, spec }: Props) {
       setValidationError(error);
       return;
     }
-    await updateChart({ variables: { chartId, spec: editSpec } });
+    await updateChart({
+      variables: { chartId, title: editTitle, spec: editSpec },
+    });
     setMode("view");
   }
 
@@ -66,12 +73,14 @@ export function ChartDetailTab({ chartId, title, spec }: Props) {
   return (
     <ChartDetailTabView
       title={title}
+      editTitle={editTitle}
       committedSpec={spec}
       editSpec={editSpec}
       mode={mode}
       validationError={validationError}
       isSaving={isSaving}
       onEdit={handleEdit}
+      onTitleChange={handleTitleChange}
       onSpecChange={handleSpecChange}
       onSave={handleSave}
       onCancel={handleCancel}

@@ -1,5 +1,5 @@
-mutation UpdateChart($chartId: ID!, $spec: String!) {
-  updateChart(chartId: $chartId, spec: $spec) {
+mutation UpdateChart($chartId: ID!, $title: String!, $spec: String!) {
+  updateChart(chartId: $chartId, title: $title, spec: $spec) {
     id
     title
     spec
