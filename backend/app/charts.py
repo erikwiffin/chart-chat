@@ -2,12 +2,15 @@
 
 import copy
 import json
+import logging
 
 import altair as alt
 import vl_convert as vlc
 
 from .data import read_csv_records
 from .storage import THUMBNAILS_DIR
+
+logger = logging.getLogger(__name__)
 
 
 def validate_vega_lite_spec(spec: dict) -> str | None:
@@ -16,6 +19,7 @@ def validate_vega_lite_spec(spec: dict) -> str | None:
         alt.Chart.from_dict(spec)
         return None
     except Exception as e:
+        logger.error("Failed to validate Vega-Lite spec: %s", e)
         return str(e)
 
 

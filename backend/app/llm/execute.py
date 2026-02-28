@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 def make_execute_step(
-    llm, ctx: ToolContext, status_callback: StatusCallback | None = None
+    llm, ctx: ToolContext, status_callback: StatusCallback | None = None,
+    project_id: int | None = None
 ):
     tools = build_tools(ctx)
     executor_tools = [v for k, v in tools.items() if k != "get_conversation_history"]
@@ -26,7 +27,7 @@ def make_execute_step(
         task = plan[0]
         logger.info("Executing step 1/%d: %s", len(plan), task)
         if status_callback:
-            summary = await summarize_task(task)
+            summary = await summarize_task(task, project_id=project_id)
             await status_callback(task, summary)
         past = "\n".join(f"- {s}: {r}" for s, r in state.get("past_steps", []))
         task_input = f"Plan:\n{plan_str}\n\nCompleted steps:\n{past}\n\nExecute: {task}"

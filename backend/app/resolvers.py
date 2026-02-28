@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 
 from ariadne import MutationType, ObjectType, QueryType, SubscriptionType
 
@@ -10,6 +11,8 @@ from .llm.generate_project_name import generate_project_name
 from .models import Chart, DataSource, Message, Project, User
 from .pubsub import pubsub
 from .storage import THUMBNAILS_DIR
+
+logger = logging.getLogger(__name__)
 
 query = QueryType()
 mutation = MutationType()
@@ -151,7 +154,7 @@ async def _update_thumbnail(chart: Chart, db):
 async def _generate_and_update_project_name(project_id: int, prompt: str):
     db = SessionLocal()
     try:
-        name = await generate_project_name(prompt)
+        name = await generate_project_name(prompt, project_id=project_id)
         project = db.query(Project).filter(Project.id == project_id).first()
         if not project:
             return
@@ -195,6 +198,7 @@ async def _generate_assistant_response(
             existing_charts,
             active_chart_id,
             status_callback=on_status,
+            project_id=project_id,
         )
 
         # Save new charts and update modified charts
@@ -218,7 +222,7 @@ async def _generate_assistant_response(
         await pubsub.publish(f"project:{project_id}", assistant_msg)
         _active_tasks.pop(project_id, None)
     except Exception as e:
-        print(f"Error generating assistant response: {e}")
+        logger.error(f"Error generating assistant response: {e}")
         _active_tasks.pop(project_id, None)
     finally:
         db.close()

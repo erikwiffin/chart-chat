@@ -12,12 +12,16 @@ from .replan import make_replan_step, should_end
 def build_plan_execute_graph(
     ctx: ToolContext,
     status_callback: StatusCallback | None = None,
+    project_id: int | None = None,
 ):
-    llm = _get_llm()
+    def tags(task: str) -> list[str] | None:
+        if project_id is None:
+            return None
+        return [f"project:{project_id}", f"task:{task}"]
 
-    plan_step = make_plan_step(llm, ctx)
-    execute_step = make_execute_step(llm, ctx, status_callback)
-    replan_step = make_replan_step(llm, ctx)
+    plan_step = make_plan_step(_get_llm(tags("plan")), ctx)
+    execute_step = make_execute_step(_get_llm(tags("execute")), ctx, status_callback, project_id)
+    replan_step = make_replan_step(_get_llm(tags("replan")), ctx)
 
     workflow = StateGraph(PlanExecute)
     workflow.add_node("planner", plan_step)

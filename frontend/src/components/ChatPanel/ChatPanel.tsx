@@ -18,7 +18,12 @@ type Props = {
   activeChartId: string | null;
 };
 
-export function ChatPanel({ projectId, projectName, onHome, activeChartId }: Props) {
+export function ChatPanel({
+  projectId,
+  projectName,
+  onHome,
+  activeChartId,
+}: Props) {
   const [input, setInput] = useState("");
   const [displayedName, setDisplayedName] = useState(projectName);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -35,14 +40,18 @@ export function ChatPanel({ projectId, projectName, onHome, activeChartId }: Pro
   useSubscription(StatusUpdateDocument, {
     variables: { projectId },
     onData: ({ data }) => {
+      console.log("Status update: %o", data);
       const update = data.data?.statusUpdate;
       if (update) setStatusMessage(update.message);
     },
   });
 
-  const { data: messagesData, subscribeToMore } = useQuery(GetProjectMessagesDocument, {
-    variables: { projectId },
-  });
+  const { data: messagesData, subscribeToMore } = useQuery(
+    GetProjectMessagesDocument,
+    {
+      variables: { projectId },
+    },
+  );
 
   useEffect(() => {
     return subscribeToMore({
@@ -50,7 +59,8 @@ export function ChatPanel({ projectId, projectName, onHome, activeChartId }: Pro
       variables: { projectId },
       updateQuery: (prev, { subscriptionData }): GetProjectMessagesQuery => {
         const newMessage = subscriptionData.data?.messageAdded;
-        if (!newMessage || !prev.project) return prev as GetProjectMessagesQuery;
+        if (!newMessage || !prev.project)
+          return prev as GetProjectMessagesQuery;
         setIsGenerating(false);
         setStatusMessage(null);
         return {
@@ -77,7 +87,9 @@ export function ChatPanel({ projectId, projectName, onHome, activeChartId }: Pro
   const handleSend = async () => {
     if (!input.trim()) return;
     setIsGenerating(true);
-    await sendMessage({ variables: { projectId, content: input.trim(), activeChartId } });
+    await sendMessage({
+      variables: { projectId, content: input.trim(), activeChartId },
+    });
     setInput("");
   };
 

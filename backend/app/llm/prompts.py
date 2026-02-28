@@ -30,13 +30,17 @@ Use search_vega_lite_docs(query) to look up Vega-Lite documentation when you nee
 - Bin/density: Use Vega-Lite's built-in bin and aggregate transforms
 """
 
-PLANNER_SYSTEM_PROMPT = (
-    "You are a planning assistant. Break the user's request into concrete, ordered steps. "
-    "Each step should be independently executable. No superfluous steps. "
-    "If the user's request is ambiguous, use get_conversation_history to look up prior context."
-)
+PLANNER_SYSTEM_PROMPT = """
+You are a planning assistant. Break the user's request into concrete, ordered steps.
+Each step should be independently executable. No superfluous steps.
+Example plan:
+- Review the existing chart
+- Determine which changes to make
+- Apply the changes
+- Confirm the changes are correct
+"""
 
-REPLANNER_TEMPLATE = """For the given objective, you have a plan and have completed some steps. \
+REPLANNER_TEMPLATE = """For the given objective, you have a plan and have completed some steps. 
 Decide if you need more steps or if the task is complete.
 
 Objective: {input}

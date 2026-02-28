@@ -34,6 +34,9 @@ services:
       postgres:
         condition: service_healthy
     command: ["--config", "/app/config.yaml", "--detailed_debug"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
 
 volumes:
   litellm-postgres-data:

@@ -3,7 +3,6 @@
 import base64
 import json
 import logging
-import re
 
 import jsonpatch
 from langchain_core.tools import tool
@@ -80,11 +79,9 @@ def _create_chart(ctx: ToolContext, title: str, spec: dict) -> str:
     logger.info("Tool create_chart called: title=%r", title)
     spec = dict(spec)
     ds_id = None
-    data_url = (spec.get("data") or {}).get("url", "")
-    m = re.search(r"/api/data-sources/(\d+)/data", data_url)
-    if m:
-        ds_id = int(m.group(1))
-    spec.pop("data", None)
+    spec["data"] = {
+        "values": [],
+    }
     error = validate_vega_lite_spec(spec)
     if error:
         logger.info("Tool create_chart: invalid spec for %r: %s", title, error)
@@ -151,7 +148,7 @@ def _edit_chart(ctx: ToolContext, chart_id: str, patch: list) -> str:
         new_spec = jsonpatch.apply_patch(chart.spec, patch)
     except Exception as e:
         return f"Failed to apply patch: {e}"
-    error = validate_vega_lite_spec(new_spec)
+    error = validate_vega_lite_spec(new_spec | {"data": {"values": []}})
     if error:
         return f"Patched spec is invalid: {error}"
     chart.spec = new_spec

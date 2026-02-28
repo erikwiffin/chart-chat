@@ -12,6 +12,7 @@ async def get_ai_response(
     existing_charts: list[Chart] | None = None,
     active_chart_id: str | None = None,
     status_callback: StatusCallback | None = None,
+    project_id: int | None = None,
 ) -> tuple[str, ToolContext]:
     user_input = next(
         (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
@@ -40,7 +41,7 @@ async def get_ai_response(
         charts=existing_charts,
     )
 
-    graph = build_plan_execute_graph(ctx, status_callback)
+    graph = build_plan_execute_graph(ctx, status_callback, project_id=project_id)
     result = await graph.ainvoke(
         {
             "input": user_input,

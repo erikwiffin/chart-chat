@@ -16,7 +16,10 @@ logger = logging.getLogger(__name__)
 def make_plan_step(llm, ctx: ToolContext):
     tools = build_tools(ctx)
     planner_tools = [tools["get_conversation_history"]]
-    planner_agent = create_agent(llm, planner_tools, system_prompt=PLANNER_SYSTEM_PROMPT)
+    planner_tools = []
+    planner_agent = create_agent(
+        llm, planner_tools, system_prompt=PLANNER_SYSTEM_PROMPT
+    )
     plan_parser_prompt = ChatPromptTemplate.from_template(
         "Based on the planner's response below, extract the ordered steps as a Plan.\n\n"
         "Planner response:\n{response}"
@@ -26,12 +29,18 @@ def make_plan_step(llm, ctx: ToolContext):
     async def plan_step(state: PlanExecute):
         logger.info("Planning input: %.120s", state["input"])
         response = await planner_agent.ainvoke(
-            {"messages": [HumanMessage(content=state["input"])]}
+            {
+                "messages": [
+                    HumanMessage(content=state["input"]),
+                ]
+            }
         )
         last_msg = response["messages"][-1].content
         plan = plan_parser.invoke({"response": last_msg})
         assert isinstance(plan, Plan)
-        logger.info("Plan (%d steps): %s", len(plan.steps), plan.steps)
+        logger.info("Created plan")
+        for step in plan.steps:
+            logger.info("- %s", step)
         return {"plan": plan.steps}
 
     return plan_step
