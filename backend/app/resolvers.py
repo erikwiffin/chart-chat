@@ -133,6 +133,7 @@ async def resolve_update_chart(_, info, chartId, title, spec):
     db.commit()
     db.refresh(chart)
     await _update_thumbnail(chart, db)
+    db.expunge(chart)  # detach so subscription can read attrs after session closes
     await pubsub.publish(f"chart_updated:{chart.project_id}", chart)
     return chart
 
@@ -203,14 +204,18 @@ async def _generate_assistant_response(
 
         # Save new charts and update modified charts
         for chart in ctx.charts:
+            event = "chart_updated"
             if chart.id is None:
                 # New chart created by tools
                 chart.project_id = project_id
+                event = "chart"
+
             db.add(chart)
             db.commit()
             db.refresh(chart)
             await _update_thumbnail(chart, db)
-            await pubsub.publish(f"chart:{project_id}", chart)
+            db.expunge(chart)  # detach so subscription can read attrs after session closes
+            await pubsub.publish(f"{event}:{project_id}", chart)
 
         assistant_msg = Message(
             project_id=project_id, content=content, role="assistant"
