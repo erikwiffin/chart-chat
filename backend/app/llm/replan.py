@@ -57,7 +57,7 @@ def make_replan_step(llm, ctx: ToolContext):
         if isinstance(output.action, Response):
             logger.info("Replan: complete — %.120s", output.action.response)
             return {"response": output.action.response}
-        logger.info("Replan: %d steps remaining: %s", len(output.action.steps))
+        logger.info("Replan: %d steps remaining:", len(output.action.steps))
         for step in output.action.steps:
             logger.info("- %s", step)
         return {"plan": output.action.steps}

@@ -222,8 +222,20 @@ async def _generate_assistant_response(
         await pubsub.publish(f"project:{project_id}", assistant_msg)
         _active_tasks.pop(project_id, None)
     except Exception as e:
-        logger.error(f"Error generating assistant response: {e}")
+        logger.error("Error generating assistant response: %s", e, exc_info=True)
         _active_tasks.pop(project_id, None)
+        try:
+            error_msg = Message(
+                project_id=project_id,
+                content="I'm sorry, I encountered an error while generating a response. Please try again.",
+                role="assistant",
+            )
+            db.add(error_msg)
+            db.commit()
+            db.refresh(error_msg)
+            await pubsub.publish(f"project:{project_id}", error_msg)
+        except Exception:
+            logger.exception("Failed to send error message to frontend", exc_info=True)
     finally:
         db.close()
 

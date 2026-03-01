@@ -37,8 +37,8 @@ def render_spec_to_png(spec: dict, file_path: str | None = None) -> bytes:
     if file_path:
         spec = inject_inline_data(spec, file_path)
 
-    spec["width"] = 600
-    spec["height"] = 400
+    spec["width"] = 400
+    spec["height"] = 300
     return vlc.vegalite_to_png(json.dumps(spec))
 
 
