@@ -4,7 +4,7 @@ import logging
 from typing import Literal
 
 from langchain.agents import create_agent
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 
 from .context import Act, PlanExecute, Response, ToolContext
@@ -34,6 +34,28 @@ def make_replan_step(llm, ctx: ToolContext):
     )
     act_parser = act_parser_prompt | llm.with_structured_output(Act)
 
+    def format_message_content(m: BaseMessage) -> str:
+        if isinstance(m, HumanMessage):
+            return str(m.content)
+        if isinstance(m, AIMessage):
+            return str(m.content)
+        if isinstance(m, ToolMessage):
+            if isinstance(m.content, str):
+                return m.content
+            if isinstance(m.content, list):
+                retval = ""
+                for content in m.content:
+                    if isinstance(content, str):
+                        retval += content + "\n"
+                    elif isinstance(content, dict):
+                        if content["type"] == "image":
+                            retval += "<image>\n"
+                        else:
+                            retval += content["text"] + "\n"
+                return retval
+            raise ValueError(f"Unknown tool message content type: {type(m.content)}")
+        raise ValueError(f"Unknown message type: {type(m)}")
+
     async def replan_step(state: PlanExecute):
         past_steps_str = "\n".join(
             f"- {s}: {r}" for s, r in state.get("past_steps", [])
@@ -49,8 +71,7 @@ def make_replan_step(llm, ctx: ToolContext):
         )
         messages = response.get("messages", [])
         conversation = "\n".join(
-            f"{getattr(m, 'type', type(m).__name__)}: {getattr(m, 'content', str(m))}"
-            for m in messages
+            f"{m.type}: {format_message_content(m)}" for m in messages
         )
         output = act_parser.invoke({"conversation": conversation})
         assert isinstance(output, Act)
