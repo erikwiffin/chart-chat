@@ -1,5 +1,6 @@
 """Planner agent node — generates a plan from user input."""
 
+import json
 import logging
 
 from langchain.agents import create_agent
@@ -27,11 +28,21 @@ def make_plan_step(llm, ctx: ToolContext):
     plan_parser = plan_parser_prompt | llm.with_structured_output(Plan)
 
     async def plan_step(state: PlanExecute):
+        plan_input = state["input"]
+        if ctx.active_chart_id:
+            chart = next(
+                (c for c in ctx.charts if str(c.id) == ctx.active_chart_id), None
+            )
+            if chart:
+                plan_input += f"\n\nSpec: {json.dumps(chart.spec, indent=2)}"
+            else:
+                logging.info(ctx.charts)
+                raise ValueError(f"Chart {ctx.active_chart_id} not found")
         logger.info("Planning input: %.120s", state["input"])
         response = await planner_agent.ainvoke(
             {
                 "messages": [
-                    HumanMessage(content=state["input"]),
+                    HumanMessage(content=plan_input),
                 ]
             }
         )

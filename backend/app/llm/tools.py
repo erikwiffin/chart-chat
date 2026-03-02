@@ -153,7 +153,6 @@ async def _edit_chart(ctx: ToolContext, chart_id: str, patch: list) -> str:
         return f"Patched spec is invalid: {error}"
     chart.spec = new_spec
     if chart.id is not None:
-        ctx.modified_chart_ids.add(chart.id)
         if ctx.on_chart_saved:
             await ctx.on_chart_saved(chart)
     return f"Chart '{chart_id}' updated successfully."

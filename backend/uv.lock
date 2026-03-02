@@ -132,10 +132,11 @@ wheels = [
 [[package]]
 name = "chart-chat"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "altair" },
     { name = "ariadne" },
+    { name = "click" },
     { name = "fastapi" },
     { name = "jsonpatch" },
     { name = "langchain" },
@@ -159,6 +160,7 @@ dev = [
 requires-dist = [
     { name = "altair", specifier = ">=6.0.0" },
     { name = "ariadne", specifier = ">=0.23.0" },
+    { name = "click", specifier = ">=8.0.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "jsonpatch", specifier = ">=1.33" },
     { name = "langchain", specifier = ">=1.2.10" },

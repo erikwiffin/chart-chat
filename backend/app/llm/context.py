@@ -30,10 +30,10 @@ class ChartRevertCallback(Protocol):
 
 @dataclass
 class ToolContext:
+    active_chart_id: str | None
     messages: list[dict]
     data_sources: list[DataSource]
     charts: list[Chart] = field(default_factory=list)
-    modified_chart_ids: set[int] = field(default_factory=set)
     on_chart_saved: ChartSaveCallback | None = None
     on_chart_reverted: ChartRevertCallback | None = None
 
