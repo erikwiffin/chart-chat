@@ -3,6 +3,7 @@ mutation UpdateChart($chartId: ID!, $title: String!, $spec: String!) {
     id
     title
     spec
+    version
     createdAt
   }
 }

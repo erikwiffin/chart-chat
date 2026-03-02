@@ -1,0 +1,9 @@
+mutation RevertChart($chartId: ID!, $version: Int!) {
+  revertChart(chartId: $chartId, version: $version) {
+    id
+    title
+    spec
+    version
+    createdAt
+  }
+}

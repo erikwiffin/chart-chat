@@ -28,6 +28,11 @@ Use search_vega_lite_docs(query) to look up Vega-Lite documentation when you nee
 - Calculate: {"transform": [{"calculate": "datum.value / 1000", "as": "value_k"}]}
 - Filter: {"transform": [{"filter": "datum.year >= 1990"}]}
 - Bin/density: Use Vega-Lite's built-in bin and aggregate transforms
+
+## Chart Reversion
+Use revert_chart(chart_id, version) to restore a chart to a previous version.
+Each edit_chart call creates a new version. If a series of edits goes wrong,
+prefer reverting to a known-good version rather than trying to patch your way back.
 """
 
 PLANNER_SYSTEM_PROMPT = """

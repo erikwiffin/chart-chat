@@ -3,6 +3,7 @@ subscription ChartUpdated($projectId: ID!) {
     id
     title
     spec
+    version
     createdAt
     thumbnailUrl
   }

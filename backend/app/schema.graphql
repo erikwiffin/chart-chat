@@ -3,6 +3,7 @@ type Query {
   users: [User!]!
   projects: [Project!]!
   project(id: ID!): Project
+  chartRevisions(chartId: ID!): [ChartRevision!]!
 }
 
 type Mutation {
@@ -12,6 +13,7 @@ type Mutation {
   sendMessage(projectId: ID!, content: String!, activeChartId: ID): Message!
   stopGeneration(projectId: ID!): Boolean!
   updateChart(chartId: ID!, title: String!, spec: String!): Chart!
+  revertChart(chartId: ID!, version: Int!): Chart!
   deleteChart(chartId: ID!): Boolean!
   deleteDataSource(dataSourceId: ID!): Boolean!
 }
@@ -70,6 +72,14 @@ type Chart {
   id: ID!
   title: String!
   spec: String!
+  version: Int!
   createdAt: String!
   thumbnailUrl: String
+}
+
+type ChartRevision {
+  id: ID!
+  version: Int!
+  spec: String!
+  createdAt: String!
 }

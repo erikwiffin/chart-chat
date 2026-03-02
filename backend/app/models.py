@@ -75,9 +75,29 @@ class Chart(Base):
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
     title: Mapped[str] = mapped_column(String(255))
     spec: Mapped[dict] = mapped_column(JSON)
+    version: Mapped[int] = mapped_column(Integer, default=1)
     data_source_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("data_sources.id"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     project: Mapped["Project"] = relationship(back_populates="charts")
+    revisions: Mapped[list["ChartRevision"]] = relationship(
+        back_populates="chart",
+        order_by="ChartRevision.version",
+        cascade="all, delete-orphan",
+    )
+
+
+class ChartRevision(Base):
+    __tablename__ = "chart_revisions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    chart_id: Mapped[int] = mapped_column(
+        ForeignKey("charts.id", ondelete="CASCADE")
+    )
+    version: Mapped[int] = mapped_column(Integer)
+    spec: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+    chart: Mapped["Chart"] = relationship(back_populates="revisions")

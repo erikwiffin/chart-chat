@@ -16,7 +16,7 @@ type Props = {
   onActiveChartChange: (chartId: string | null) => void;
 };
 
-type Chart = { id: string; title: string; spec: string };
+type Chart = { id: string; title: string; spec: string; version: number };
 type DataSource = {
   id: string;
   name: string;
@@ -67,6 +67,7 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
           label: truncateLabel(newChart.title),
           title: newChart.title,
           spec: newChart.spec,
+          version: newChart.version,
           closeable: true,
         };
         return [...prev, newTab];
@@ -88,6 +89,7 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
               ...tab,
               spec: updatedChart.spec,
               title: updatedChart.title,
+              version: updatedChart.version,
               label: truncateLabel(updatedChart.title),
             };
           }
@@ -107,6 +109,7 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
         label: truncateLabel(chart.title),
         title: chart.title,
         spec: chart.spec,
+        version: chart.version,
         closeable: true,
       };
       return [...prev, newTab];
@@ -176,6 +179,7 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
             projectId={projectId}
             title={tab.title}
             spec={tab.spec}
+            version={tab.version}
             onDelete={() => {
               closeTab(tab.id);
               showNotification("Chart deleted");

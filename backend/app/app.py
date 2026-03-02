@@ -12,6 +12,7 @@ from .data import get_data_source_preview, read_csv_dataframe
 from .database import Base, SessionLocal, engine
 from .models import DataSource, Project
 from .resolvers import (
+    chart_revision_type,
     chart_type,
     data_source_type,
     message_type,
@@ -39,6 +40,7 @@ schema = make_executable_schema(
     message_type,
     data_source_type,
     chart_type,
+    chart_revision_type,
 )
 
 app = FastAPI()

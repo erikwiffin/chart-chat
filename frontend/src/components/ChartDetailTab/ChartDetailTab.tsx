@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { useMutation } from "@apollo/client/react";
+import { useMutation, useQuery } from "@apollo/client/react";
 import { compile } from "vega-lite";
 import {
   DeleteChartDocument,
+  GetChartRevisionsDocument,
   GetProjectChartsDocument,
+  RevertChartDocument,
   UpdateChartDocument,
 } from "../../__generated__/graphql";
 import { ChartDetailTabView } from "./ChartDetailTabView";
@@ -13,10 +15,11 @@ type Props = {
   projectId: string;
   title: string;
   spec: string;
+  version: number;
   onDelete: () => void;
 };
 
-export function ChartDetailTab({ chartId, projectId, title, spec, onDelete }: Props) {
+export function ChartDetailTab({ chartId, projectId, title, spec, version, onDelete }: Props) {
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [editTitle, setEditTitle] = useState(title);
   const [editSpec, setEditSpec] = useState(
@@ -26,10 +29,23 @@ export function ChartDetailTab({ chartId, projectId, title, spec, onDelete }: Pr
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [previewVersion, setPreviewVersion] = useState<number | null>(null);
+
+  const { data: revisionsData } = useQuery(GetChartRevisionsDocument, {
+    variables: { chartId },
+  });
+  const revisions = revisionsData?.chartRevisions ?? [];
+
+  const previewSpec = previewVersion !== null
+    ? revisions.find((r) => r.version === previewVersion)?.spec ?? null
+    : null;
 
   const [updateChart, { loading: isSaving }] = useMutation(UpdateChartDocument);
   const [deleteChart] = useMutation(DeleteChartDocument, {
     refetchQueries: [{ query: GetProjectChartsDocument, variables: { id: projectId } }],
+  });
+  const [revertChart, { loading: isReverting }] = useMutation(RevertChartDocument, {
+    refetchQueries: [{ query: GetChartRevisionsDocument, variables: { chartId } }],
   });
 
   function validate(value: string): string | null {
@@ -104,6 +120,18 @@ export function ChartDetailTab({ chartId, projectId, title, spec, onDelete }: Pr
     setShowDeleteModal(false);
   }
 
+  function handleVersionSelect(v: number | null) {
+    setPreviewVersion(v);
+  }
+
+  async function handleRevert() {
+    if (previewVersion === null) return;
+    await revertChart({
+      variables: { chartId, version: previewVersion },
+    });
+    setPreviewVersion(null);
+  }
+
   return (
     <ChartDetailTabView
       title={title}
@@ -116,6 +144,11 @@ export function ChartDetailTab({ chartId, projectId, title, spec, onDelete }: Pr
       showDeleteModal={showDeleteModal}
       isDeleting={isDeleting}
       deleteError={deleteError}
+      revisions={revisions}
+      currentVersion={version}
+      previewVersion={previewVersion}
+      previewSpec={previewSpec}
+      isReverting={isReverting}
       onEdit={handleEdit}
       onTitleChange={handleTitleChange}
       onSpecChange={handleSpecChange}
@@ -125,6 +158,8 @@ export function ChartDetailTab({ chartId, projectId, title, spec, onDelete }: Pr
       onDeleteClick={handleDeleteClick}
       onDeleteConfirm={handleDeleteConfirm}
       onDeleteCancel={handleDeleteCancel}
+      onVersionSelect={handleVersionSelect}
+      onRevert={handleRevert}
     />
   );
 }

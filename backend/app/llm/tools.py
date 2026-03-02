@@ -139,7 +139,7 @@ def _render_chart(ctx: ToolContext, chart_id: str) -> list:
     ]
 
 
-def _edit_chart(ctx: ToolContext, chart_id: str, patch: list) -> str:
+async def _edit_chart(ctx: ToolContext, chart_id: str, patch: list) -> str:
     logger.info("Tool edit_chart called: chart_id=%r, patch=%s", chart_id, patch)
     chart = _find_chart(ctx, chart_id)
     if chart is None:
@@ -154,7 +154,19 @@ def _edit_chart(ctx: ToolContext, chart_id: str, patch: list) -> str:
     chart.spec = new_spec
     if chart.id is not None:
         ctx.modified_chart_ids.add(chart.id)
+        if ctx.on_chart_saved:
+            await ctx.on_chart_saved(chart)
     return f"Chart '{chart_id}' updated successfully."
+
+
+async def _revert_chart(ctx: ToolContext, chart_id: str, version: int) -> str:
+    logger.info("Tool revert_chart called: chart_id=%r, version=%d", chart_id, version)
+    chart = _find_chart(ctx, chart_id)
+    if chart is None:
+        return f"Chart '{chart_id}' not found."
+    if ctx.on_chart_reverted is None:
+        return "Chart revert is not available."
+    return await ctx.on_chart_reverted(chart, version)
 
 
 def build_tools(ctx: ToolContext) -> dict:
@@ -207,12 +219,20 @@ def build_tools(ctx: ToolContext) -> dict:
         return _render_chart(ctx, chart_id)
 
     @tool
-    def edit_chart(chart_id: str, patch: list) -> str:
+    async def edit_chart(chart_id: str, patch: list) -> str:
         """Edit a chart spec using a JSON Patch (RFC 6902) document.
         patch should be a list of operation dicts, e.g.
         [{"op": "replace", "path": "/mark", "value": "bar"}]
         """
-        return _edit_chart(ctx, chart_id, patch)
+        return await _edit_chart(ctx, chart_id, patch)
+
+    @tool
+    async def revert_chart(chart_id: str, version: int) -> str:
+        """Revert a chart to a previous version. Use list_charts to find the chart ID,
+        then specify the version number to revert to. This is useful when edits have
+        gone wrong and you want to restore a known-good state rather than trying to
+        patch your way back."""
+        return await _revert_chart(ctx, chart_id, version)
 
     return {
         "get_conversation_history": get_conversation_history,
@@ -225,4 +245,5 @@ def build_tools(ctx: ToolContext) -> dict:
         "get_chart_spec": get_chart_spec,
         "render_chart": render_chart,
         "edit_chart": edit_chart,
+        "revert_chart": revert_chart,
     }

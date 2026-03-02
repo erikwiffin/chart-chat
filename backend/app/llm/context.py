@@ -16,12 +16,26 @@ class StatusCallback(Protocol):
     async def __call__(self, task: str, message: str) -> None: ...
 
 
+class ChartSaveCallback(Protocol):
+    """Protocol for immediate chart save: async callable receiving the chart."""
+
+    async def __call__(self, chart: Chart) -> None: ...
+
+
+class ChartRevertCallback(Protocol):
+    """Protocol for chart revert: async callable receiving the chart and target version."""
+
+    async def __call__(self, chart: Chart, version: int) -> str: ...
+
+
 @dataclass
 class ToolContext:
     messages: list[dict]
     data_sources: list[DataSource]
     charts: list[Chart] = field(default_factory=list)
     modified_chart_ids: set[int] = field(default_factory=set)
+    on_chart_saved: ChartSaveCallback | None = None
+    on_chart_reverted: ChartRevertCallback | None = None
 
 
 class PlanExecute(TypedDict):

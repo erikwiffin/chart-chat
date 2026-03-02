@@ -2,6 +2,13 @@ import { ChartCard } from "../ChartCard/ChartCard";
 import { ChartSpecEditor } from "../ChartSpecEditor/ChartSpecEditor";
 import { ConfirmDeleteModal } from "../ConfirmDeleteModal/ConfirmDeleteModal";
 
+type Revision = {
+  id: string;
+  version: number;
+  spec: string;
+  createdAt: string;
+};
+
 type Props = {
   title: string;
   editTitle: string;
@@ -13,6 +20,11 @@ type Props = {
   showDeleteModal: boolean;
   isDeleting: boolean;
   deleteError: string | null;
+  revisions: Revision[];
+  currentVersion: number;
+  previewVersion: number | null;
+  previewSpec: string | null;
+  isReverting: boolean;
   onEdit: () => void;
   onTitleChange: (newTitle: string) => void;
   onSpecChange: (newSpec: string) => void;
@@ -22,7 +34,19 @@ type Props = {
   onDeleteClick: () => void;
   onDeleteConfirm: () => void;
   onDeleteCancel: () => void;
+  onVersionSelect: (version: number | null) => void;
+  onRevert: () => void;
 };
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 export function ChartDetailTabView({
   title,
@@ -35,6 +59,11 @@ export function ChartDetailTabView({
   showDeleteModal,
   isDeleting,
   deleteError,
+  revisions,
+  currentVersion,
+  previewVersion,
+  previewSpec,
+  isReverting,
   onEdit,
   onTitleChange,
   onSpecChange,
@@ -44,13 +73,45 @@ export function ChartDetailTabView({
   onDeleteClick,
   onDeleteConfirm,
   onDeleteCancel,
+  onVersionSelect,
+  onRevert,
 }: Props) {
+  const displaySpec = previewSpec ?? committedSpec;
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2 border-b border-base-300 shrink-0">
         <span className="font-medium text-sm flex-1 truncate">{title}</span>
         {mode === "view" && (
           <>
+            {revisions.length > 0 && (
+              <select
+                className="select select-sm select-bordered"
+                value={previewVersion ?? currentVersion}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  onVersionSelect(v === currentVersion ? null : v);
+                }}
+              >
+                {revisions.map((r) => (
+                  <option key={r.id} value={r.version}>
+                    v{r.version}
+                    {r.version === currentVersion ? " (current)" : ""}
+                    {" — "}
+                    {formatDate(r.createdAt)}
+                  </option>
+                ))}
+              </select>
+            )}
+            {previewVersion !== null && previewVersion !== currentVersion && (
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={onRevert}
+                disabled={isReverting}
+              >
+                {isReverting ? "Reverting..." : `Revert to v${previewVersion}`}
+              </button>
+            )}
             <button
               className="btn btn-sm btn-ghost"
               onClick={onEdit}
@@ -102,7 +163,7 @@ export function ChartDetailTabView({
       )}
       <div className="flex-1 overflow-auto p-4">
         {mode === "view" ? (
-          <ChartCard title={title} spec={committedSpec} />
+          <ChartCard title={title} spec={displaySpec} />
         ) : (
           <>
             <input

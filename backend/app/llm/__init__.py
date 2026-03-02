@@ -1,7 +1,7 @@
 """LLM package — public API."""
 
 from ..models import Chart, DataSource
-from .context import StatusCallback, ToolContext
+from .context import ChartRevertCallback, ChartSaveCallback, StatusCallback, ToolContext
 from .generate_project_name import generate_project_name
 from .graph import build_plan_execute_graph
 
@@ -13,6 +13,8 @@ async def get_ai_response(
     active_chart_id: str | None = None,
     status_callback: StatusCallback | None = None,
     project_id: int | None = None,
+    on_chart_saved: ChartSaveCallback | None = None,
+    on_chart_reverted: ChartRevertCallback | None = None,
 ) -> tuple[str, ToolContext]:
     user_input = next(
         (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
@@ -39,6 +41,8 @@ async def get_ai_response(
         messages=messages,
         data_sources=data_sources,
         charts=existing_charts,
+        on_chart_saved=on_chart_saved,
+        on_chart_reverted=on_chart_reverted,
     )
 
     graph = build_plan_execute_graph(ctx, status_callback, project_id=project_id)

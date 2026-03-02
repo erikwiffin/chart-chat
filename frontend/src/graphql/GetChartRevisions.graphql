@@ -1,0 +1,8 @@
+query GetChartRevisions($chartId: ID!) {
+  chartRevisions(chartId: $chartId) {
+    id
+    version
+    spec
+    createdAt
+  }
+}

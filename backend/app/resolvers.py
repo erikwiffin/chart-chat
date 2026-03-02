@@ -8,7 +8,7 @@ from .charts import generate_chart_thumbnail
 from .database import SessionLocal
 from .llm import get_ai_response
 from .llm.generate_project_name import generate_project_name
-from .models import Chart, DataSource, Message, Project, User
+from .models import Chart, ChartRevision, DataSource, Message, Project, User
 from .pubsub import pubsub
 from .storage import THUMBNAILS_DIR
 
@@ -21,6 +21,7 @@ project_type = ObjectType("Project")
 message_type = ObjectType("Message")
 data_source_type = ObjectType("DataSource")
 chart_type = ObjectType("Chart")
+chart_revision_type = ObjectType("ChartRevision")
 
 _active_tasks: dict[int, asyncio.Task] = {}
 
@@ -46,6 +47,17 @@ def resolve_projects(_, info):
 @query.field("project")
 def resolve_project(_, info, id):
     return info.context["db"].query(Project).filter(Project.id == int(id)).first()
+
+
+@query.field("chartRevisions")
+def resolve_chart_revisions(_, info, chartId):
+    return (
+        info.context["db"]
+        .query(ChartRevision)
+        .filter(ChartRevision.chart_id == int(chartId))
+        .order_by(ChartRevision.version.desc())
+        .all()
+    )
 
 
 # --- Mutations ---
@@ -130,10 +142,47 @@ async def resolve_update_chart(_, info, chartId, title, spec):
     parsed_spec.pop("data", None)
     chart.title = title
     chart.spec = parsed_spec
+    chart.version += 1
     db.commit()
     db.refresh(chart)
+    revision = ChartRevision(
+        chart_id=chart.id, version=chart.version, spec=dict(chart.spec)
+    )
+    db.add(revision)
+    db.commit()
     await _update_thumbnail(chart, db)
     db.expunge(chart)  # detach so subscription can read attrs after session closes
+    await pubsub.publish(f"chart_updated:{chart.project_id}", chart)
+    return chart
+
+
+@mutation.field("revertChart")
+async def resolve_revert_chart(_, info, chartId, version):
+    db = info.context["db"]
+    chart = db.query(Chart).filter(Chart.id == int(chartId)).first()
+    if not chart:
+        raise ValueError(f"Chart {chartId} not found")
+    revision = (
+        db.query(ChartRevision)
+        .filter(
+            ChartRevision.chart_id == chart.id,
+            ChartRevision.version == version,
+        )
+        .first()
+    )
+    if not revision:
+        raise ValueError(f"Version {version} not found for chart {chartId}")
+    chart.spec = dict(revision.spec)
+    chart.version += 1
+    db.commit()
+    db.refresh(chart)
+    new_revision = ChartRevision(
+        chart_id=chart.id, version=chart.version, spec=dict(chart.spec)
+    )
+    db.add(new_revision)
+    db.commit()
+    await _update_thumbnail(chart, db)
+    db.expunge(chart)
     await pubsub.publish(f"chart_updated:{chart.project_id}", chart)
     return chart
 
@@ -210,10 +259,58 @@ async def _generate_assistant_response(
 
         existing_charts = db.query(Chart).filter(Chart.project_id == project_id).all()
 
+        saved_chart_ids: set[int] = set()
+
         async def on_status(task: str, message: str):
             await pubsub.publish(
                 f"status:{project_id}", {"task": task, "message": message}
             )
+
+        async def on_chart_saved(chart: Chart) -> None:
+            chart.version += 1
+            db.add(chart)
+            db.commit()
+            db.refresh(chart)
+            revision = ChartRevision(
+                chart_id=chart.id, version=chart.version, spec=dict(chart.spec)
+            )
+            db.add(revision)
+            db.commit()
+            await _update_thumbnail(chart, db)
+            saved_chart_ids.add(chart.id)
+            # Expunge a copy for the subscription, keep original attached
+            db.expunge(chart)
+            await pubsub.publish(f"chart_updated:{project_id}", chart)
+            # Re-attach chart to session for subsequent edits
+            db.add(chart)
+
+        async def on_chart_reverted(chart: Chart, version: int) -> str:
+            revision = (
+                db.query(ChartRevision)
+                .filter(
+                    ChartRevision.chart_id == chart.id,
+                    ChartRevision.version == version,
+                )
+                .first()
+            )
+            if not revision:
+                return f"Version {version} not found for chart {chart.id}."
+            chart.spec = dict(revision.spec)
+            chart.version += 1
+            db.add(chart)
+            db.commit()
+            db.refresh(chart)
+            new_revision = ChartRevision(
+                chart_id=chart.id, version=chart.version, spec=dict(chart.spec)
+            )
+            db.add(new_revision)
+            db.commit()
+            await _update_thumbnail(chart, db)
+            saved_chart_ids.add(chart.id)
+            db.expunge(chart)
+            await pubsub.publish(f"chart_updated:{project_id}", chart)
+            db.add(chart)
+            return f"Chart {chart.id} reverted to version {version} (now version {chart.version})."
 
         content, ctx = await get_ai_response(
             messages,
@@ -222,10 +319,14 @@ async def _generate_assistant_response(
             active_chart_id,
             status_callback=on_status,
             project_id=project_id,
+            on_chart_saved=on_chart_saved,
+            on_chart_reverted=on_chart_reverted,
         )
 
         # Save new charts and update modified charts
         for chart in ctx.charts:
+            if chart.id is not None and chart.id in saved_chart_ids:
+                continue
             event = "chart_updated"
             if chart.id is None:
                 # New chart created by tools
@@ -235,6 +336,14 @@ async def _generate_assistant_response(
             db.add(chart)
             db.commit()
             db.refresh(chart)
+
+            if event == "chart":
+                revision = ChartRevision(
+                    chart_id=chart.id, version=chart.version, spec=dict(chart.spec)
+                )
+                db.add(revision)
+                db.commit()
+
             await _update_thumbnail(chart, db)
             db.expunge(chart)  # detach so subscription can read attrs after session closes
             await pubsub.publish(f"{event}:{project_id}", chart)
@@ -380,3 +489,13 @@ def resolve_chart_created_at(obj, *_):
 def resolve_chart_thumbnail_url(obj, *_):
     path = THUMBNAILS_DIR / f"chart_{obj.id}.png"
     return f"/api/charts/{obj.id}/thumbnail" if path.exists() else None
+
+
+@chart_revision_type.field("createdAt")
+def resolve_chart_revision_created_at(obj, *_):
+    return obj.created_at.isoformat()
+
+
+@chart_revision_type.field("spec")
+def resolve_chart_revision_spec(obj, *_):
+    return json.dumps(obj.spec)
