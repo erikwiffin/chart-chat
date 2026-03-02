@@ -138,6 +138,28 @@ async def resolve_update_chart(_, info, chartId, title, spec):
     return chart
 
 
+@mutation.field("deleteChart")
+def resolve_delete_chart(_, info, chartId):
+    db = info.context["db"]
+    chart = db.query(Chart).filter(Chart.id == int(chartId)).first()
+    if not chart:
+        raise ValueError(f"Chart {chartId} not found")
+    db.delete(chart)
+    db.commit()
+    return True
+
+
+@mutation.field("deleteDataSource")
+def resolve_delete_data_source(_, info, dataSourceId):
+    db = info.context["db"]
+    ds = db.query(DataSource).filter(DataSource.id == int(dataSourceId)).first()
+    if not ds:
+        raise ValueError(f"DataSource {dataSourceId} not found")
+    db.delete(ds)
+    db.commit()
+    return True
+
+
 async def _update_thumbnail(chart: Chart, db):
     file_path = None
     if chart.data_source_id:

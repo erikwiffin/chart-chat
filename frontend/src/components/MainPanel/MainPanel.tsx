@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSubscription } from "@apollo/client/react";
 import {
   ChartAddedDocument,
@@ -25,11 +25,15 @@ type DataSource = {
   rowCount: number;
 };
 
+type Notification = { id: number; message: string };
+
 export function MainPanel({ projectId, onActiveChartChange }: Props) {
   const [tabs, setTabs] = useState<AppTab[]>([
     { id: "overview", label: "Overview", closeable: false },
   ]);
   const [activeTabId, setActiveTabId] = useState("overview");
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const nextNotificationId = useRef(0);
 
   useEffect(() => {
     const activeTab = tabs.find((t) => t.id === activeTabId);
@@ -40,6 +44,14 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
       onActiveChartChange(null);
     }
   }, [activeTabId, tabs, onActiveChartChange]);
+
+  const showNotification = useCallback((message: string) => {
+    const id = nextNotificationId.current++;
+    setNotifications((prev) => [...prev, { id, message }]);
+    setTimeout(() => {
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+    }, 3000);
+  }, []);
 
   useSubscription(ChartAddedDocument, {
     variables: { projectId },
@@ -161,8 +173,13 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
           <ChartDetailTab
             key={chartId}
             chartId={chartId}
+            projectId={projectId}
             title={tab.title}
             spec={tab.spec}
+            onDelete={() => {
+              closeTab(tab.id);
+              showNotification("Chart deleted");
+            }}
           />
         );
       }
@@ -171,19 +188,25 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
           <DataSourceDetailTab
             key={tab.dataSourceId}
             dataSourceId={tab.dataSourceId}
+            projectId={projectId}
             name={tab.name}
+            onDelete={() => {
+              closeTab(tab.id);
+              showNotification("Data source deleted");
+            }}
           />
         );
       }
       return null;
     },
-    [projectId, openChartTab, openDataSourceTab],
+    [projectId, openChartTab, openDataSourceTab, closeTab, showNotification],
   );
 
   return (
     <MainPanelView
       tabs={tabs}
       activeTabId={activeTabId}
+      notifications={notifications}
       onTabChange={setActiveTabId}
       onCloseTab={closeTab}
       onReorderTabs={reorderTabs}

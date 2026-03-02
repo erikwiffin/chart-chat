@@ -1,3 +1,5 @@
+import { ConfirmDeleteModal } from "../ConfirmDeleteModal/ConfirmDeleteModal";
+
 type PreviewData = {
   preview_rows: Record<string, unknown>[];
   describe_columns: string[];
@@ -8,9 +10,25 @@ type Props = {
   name: string;
   status: "loading" | "error" | "loaded";
   data: PreviewData | null;
+  showDeleteModal: boolean;
+  isDeleting: boolean;
+  deleteError: string | null;
+  onDeleteClick: () => void;
+  onDeleteConfirm: () => void;
+  onDeleteCancel: () => void;
 };
 
-export function DataSourceDetailTabView({ name, status, data }: Props) {
+export function DataSourceDetailTabView({
+  name,
+  status,
+  data,
+  showDeleteModal,
+  isDeleting,
+  deleteError,
+  onDeleteClick,
+  onDeleteConfirm,
+  onDeleteCancel,
+}: Props) {
   if (status === "loading") {
     return (
       <div className="flex justify-center items-center h-32">
@@ -35,7 +53,22 @@ export function DataSourceDetailTabView({ name, status, data }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <h2 className="text-base font-semibold">{name}</h2>
+      <div className="flex items-center gap-2">
+        <h2 className="text-base font-semibold flex-1">{name}</h2>
+        <button
+          className="btn btn-sm btn-error btn-ghost"
+          onClick={onDeleteClick}
+          title="Delete data source"
+        >
+          Delete
+        </button>
+      </div>
+
+      {deleteError && (
+        <div role="alert" className="alert alert-error">
+          <span>{deleteError}</span>
+        </div>
+      )}
 
       {preview_rows.length > 0 && (
         <section>
@@ -96,6 +129,14 @@ export function DataSourceDetailTabView({ name, status, data }: Props) {
           </div>
         </section>
       )}
+
+      <ConfirmDeleteModal
+        isOpen={showDeleteModal}
+        itemName={name}
+        isDeleting={isDeleting}
+        onConfirm={onDeleteConfirm}
+        onCancel={onDeleteCancel}
+      />
     </div>
   );
 }

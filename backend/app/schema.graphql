@@ -12,6 +12,8 @@ type Mutation {
   sendMessage(projectId: ID!, content: String!, activeChartId: ID): Message!
   stopGeneration(projectId: ID!): Boolean!
   updateChart(chartId: ID!, title: String!, spec: String!): Chart!
+  deleteChart(chartId: ID!): Boolean!
+  deleteDataSource(dataSourceId: ID!): Boolean!
 }
 
 type Subscription {

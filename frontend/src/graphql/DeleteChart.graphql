@@ -1,0 +1,3 @@
+mutation DeleteChart($chartId: ID!) {
+  deleteChart(chartId: $chartId)
+}

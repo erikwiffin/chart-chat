@@ -1,24 +1,36 @@
 import { useState } from "react";
 import { useMutation } from "@apollo/client/react";
 import { compile } from "vega-lite";
-import { UpdateChartDocument } from "../../__generated__/graphql";
+import {
+  DeleteChartDocument,
+  GetProjectChartsDocument,
+  UpdateChartDocument,
+} from "../../__generated__/graphql";
 import { ChartDetailTabView } from "./ChartDetailTabView";
 
 type Props = {
   chartId: string;
+  projectId: string;
   title: string;
   spec: string;
+  onDelete: () => void;
 };
 
-export function ChartDetailTab({ chartId, title, spec }: Props) {
+export function ChartDetailTab({ chartId, projectId, title, spec, onDelete }: Props) {
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [editTitle, setEditTitle] = useState(title);
   const [editSpec, setEditSpec] = useState(
     JSON.stringify(JSON.parse(spec), null, 4),
   );
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [updateChart, { loading: isSaving }] = useMutation(UpdateChartDocument);
+  const [deleteChart] = useMutation(DeleteChartDocument, {
+    refetchQueries: [{ query: GetProjectChartsDocument, variables: { id: projectId } }],
+  });
 
   function validate(value: string): string | null {
     try {
@@ -70,6 +82,28 @@ export function ChartDetailTab({ chartId, title, spec }: Props) {
     }
   }
 
+  function handleDeleteClick() {
+    setDeleteError(null);
+    setShowDeleteModal(true);
+  }
+
+  async function handleDeleteConfirm() {
+    setIsDeleting(true);
+    try {
+      await deleteChart({ variables: { chartId } });
+      onDelete();
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : String(e));
+      setShowDeleteModal(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  function handleDeleteCancel() {
+    setShowDeleteModal(false);
+  }
+
   return (
     <ChartDetailTabView
       title={title}
@@ -79,12 +113,18 @@ export function ChartDetailTab({ chartId, title, spec }: Props) {
       mode={mode}
       validationError={validationError}
       isSaving={isSaving}
+      showDeleteModal={showDeleteModal}
+      isDeleting={isDeleting}
+      deleteError={deleteError}
       onEdit={handleEdit}
       onTitleChange={handleTitleChange}
       onSpecChange={handleSpecChange}
       onSave={handleSave}
       onCancel={handleCancel}
       onPrettify={handlePrettify}
+      onDeleteClick={handleDeleteClick}
+      onDeleteConfirm={handleDeleteConfirm}
+      onDeleteCancel={handleDeleteCancel}
     />
   );
 }

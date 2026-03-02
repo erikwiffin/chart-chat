@@ -2,9 +2,12 @@ import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { AppTab } from "./tabs";
 
+type Notification = { id: number; message: string };
+
 type Props = {
   tabs: AppTab[];
   activeTabId: string;
+  notifications: Notification[];
   onTabChange: (id: string) => void;
   onCloseTab: (id: string) => void;
   onReorderTabs: (fromIndex: number, toIndex: number) => void;
@@ -14,6 +17,7 @@ type Props = {
 export function MainPanelView({
   tabs,
   activeTabId,
+  notifications,
   onTabChange,
   onCloseTab,
   onReorderTabs,
@@ -84,6 +88,16 @@ export function MainPanelView({
       <div className="flex-1 overflow-y-auto p-6 -mt-px border-t border-base-300">
         {activeTab ? renderContent(activeTab) : null}
       </div>
+
+      {notifications.length > 0 && (
+        <div className="toast toast-top toast-end">
+          {notifications.map((n) => (
+            <div key={n.id} className="alert alert-success">
+              <span>{n.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
