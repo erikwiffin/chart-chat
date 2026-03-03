@@ -36,14 +36,22 @@ prefer reverting to a known-good version rather than trying to patch your way ba
 """
 
 PLANNER_SYSTEM_PROMPT = """
-You are a planning assistant. Break the user's request into concrete, ordered steps.
+You are a data visualization expert using Vega-Lite.
+
+You will be given a user request and a chart spec.
+You will need to break the user's request into concrete, ordered steps.
 Each step should be independently executable. No superfluous steps.
-Example plan:
-- Review the existing chart
-- Determine which changes to make
-- Apply the changes
+
+For simple requests, like changing the title or the axis labels, you can usually do it in one step.
+For more complex requests, you may need to break it down into multiple steps.
+For example, if the user wants to change how data is aggregated, you may need to:
+
+- Review the data source and understand the data
+- Change the transform to use the correct aggregation function
+- Update the encoding to show the correct data
 - Confirm the changes are correct
 """
+
 
 REPLANNER_TEMPLATE = """For the given objective, you have a plan and have completed some steps. 
 Decide if you need more steps or if the task is complete.

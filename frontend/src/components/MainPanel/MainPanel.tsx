@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSubscription } from "@apollo/client/react";
+import { useSubscription, useQuery } from "@apollo/client/react";
+import { useMatch, useNavigate } from "react-router-dom";
 import {
   ChartAddedDocument,
   ChartUpdatedDocument,
+  GetProjectChartsDocument,
+  GetProjectDataSourcesDocument,
 } from "../../__generated__/graphql";
 import { ChartDetailTab } from "../ChartDetailTab/ChartDetailTab";
 import { DataSourceDetailTab } from "../DataSourceDetailTab/DataSourceDetailTab";
@@ -28,12 +31,32 @@ type DataSource = {
 type Notification = { id: number; message: string };
 
 export function MainPanel({ projectId, onActiveChartChange }: Props) {
+  const chartRouteMatch = useMatch("/project/:projectId/chart/:chartId");
+  const dataRouteMatch = useMatch("/project/:projectId/data/:dataSourceId");
+  const urlChartId = chartRouteMatch?.params.chartId;
+  const urlDataSourceId = dataRouteMatch?.params.dataSourceId;
+  const navigate = useNavigate();
+
+  const activeTabId = urlChartId
+    ? `chart-${urlChartId}`
+    : urlDataSourceId
+    ? `ds-${urlDataSourceId}`
+    : "overview";
+
   const [tabs, setTabs] = useState<AppTab[]>([
     { id: "overview", label: "Overview", closeable: false },
   ]);
-  const [activeTabId, setActiveTabId] = useState("overview");
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const nextNotificationId = useRef(0);
+  const hasInitialized = useRef(false);
+  const storageKey = `chart-chat-tabs-${projectId}`;
+
+  const { data: chartsData } = useQuery(GetProjectChartsDocument, {
+    variables: { id: projectId },
+  });
+  const { data: dataSourcesData } = useQuery(GetProjectDataSourcesDocument, {
+    variables: { id: projectId },
+  });
 
   useEffect(() => {
     const activeTab = tabs.find((t) => t.id === activeTabId);
@@ -45,6 +68,64 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
     }
   }, [activeTabId, tabs, onActiveChartChange]);
 
+  // Save open tabs to localStorage (after initialization)
+  useEffect(() => {
+    if (!hasInitialized.current) return;
+    const ids = tabs.filter((t) => t.id !== "overview").map((t) => t.id);
+    localStorage.setItem(storageKey, JSON.stringify(ids));
+  }, [tabs, storageKey]);
+
+  // Restore open tabs from localStorage (once, when data is available)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (hasInitialized.current) return;
+    if (!chartsData || !dataSourcesData) return;
+    hasInitialized.current = true;
+
+    const persistedIds: string[] = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
+    const idsToOpen = new Set(persistedIds);
+    if (urlChartId) idsToOpen.add(`chart-${urlChartId}`);
+    if (urlDataSourceId) idsToOpen.add(`ds-${urlDataSourceId}`);
+
+    const charts = chartsData.project?.charts ?? [];
+    const dataSources = dataSourcesData.project?.dataSources ?? [];
+
+    const restoredTabs: AppTab[] = [
+      { id: "overview", label: "Overview", closeable: false },
+    ];
+
+    for (const tabId of idsToOpen) {
+      if (tabId.startsWith("chart-")) {
+        const chart = charts.find((c) => `chart-${c.id}` === tabId);
+        if (chart) {
+          restoredTabs.push({
+            kind: "chart",
+            id: tabId,
+            label: truncateLabel(chart.title),
+            title: chart.title,
+            spec: chart.spec,
+            version: chart.version,
+            closeable: true,
+          });
+        }
+      } else if (tabId.startsWith("ds-")) {
+        const ds = dataSources.find((d) => `ds-${d.id}` === tabId);
+        if (ds) {
+          restoredTabs.push({
+            kind: "data-source",
+            id: tabId,
+            label: truncateLabel(ds.name),
+            dataSourceId: ds.id,
+            name: ds.name,
+            closeable: true,
+          });
+        }
+      }
+    }
+
+    setTabs(restoredTabs);
+  }, [chartsData, dataSourcesData]);
+
   const showNotification = useCallback((message: string) => {
     const id = nextNotificationId.current++;
     setNotifications((prev) => [...prev, { id, message }]);
@@ -52,6 +133,19 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
     }, 3000);
   }, []);
+
+  const navigateToTab = useCallback(
+    (tabId: string) => {
+      if (tabId === "overview") {
+        navigate(`/project/${projectId}`);
+      } else if (tabId.startsWith("chart-")) {
+        navigate(`/project/${projectId}/chart/${tabId.replace("chart-", "")}`);
+      } else if (tabId.startsWith("ds-")) {
+        navigate(`/project/${projectId}/data/${tabId.replace("ds-", "")}`);
+      }
+    },
+    [navigate, projectId],
+  );
 
   useSubscription(ChartAddedDocument, {
     variables: { projectId },
@@ -72,7 +166,7 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
         };
         return [...prev, newTab];
       });
-      setActiveTabId(tabId);
+      navigateToTab(tabId);
     },
   });
 
@@ -99,40 +193,46 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
     },
   });
 
-  const openChartTab = useCallback((chart: Chart) => {
-    const tabId = `chart-${chart.id}`;
-    setTabs((prev) => {
-      if (prev.some((t) => t.id === tabId)) return prev;
-      const newTab: ChartTab = {
-        kind: "chart",
-        id: tabId,
-        label: truncateLabel(chart.title),
-        title: chart.title,
-        spec: chart.spec,
-        version: chart.version,
-        closeable: true,
-      };
-      return [...prev, newTab];
-    });
-    setActiveTabId(tabId);
-  }, []);
+  const openChartTab = useCallback(
+    (chart: Chart) => {
+      const tabId = `chart-${chart.id}`;
+      setTabs((prev) => {
+        if (prev.some((t) => t.id === tabId)) return prev;
+        const newTab: ChartTab = {
+          kind: "chart",
+          id: tabId,
+          label: truncateLabel(chart.title),
+          title: chart.title,
+          spec: chart.spec,
+          version: chart.version,
+          closeable: true,
+        };
+        return [...prev, newTab];
+      });
+      navigateToTab(tabId);
+    },
+    [navigateToTab],
+  );
 
-  const openDataSourceTab = useCallback((ds: DataSource) => {
-    const tabId = `ds-${ds.id}`;
-    setTabs((prev) => {
-      if (prev.some((t) => t.id === tabId)) return prev;
-      const newTab: DataSourceTab = {
-        kind: "data-source",
-        id: tabId,
-        label: truncateLabel(ds.name),
-        dataSourceId: ds.id,
-        name: ds.name,
-        closeable: true,
-      };
-      return [...prev, newTab];
-    });
-    setActiveTabId(tabId);
-  }, []);
+  const openDataSourceTab = useCallback(
+    (ds: DataSource) => {
+      const tabId = `ds-${ds.id}`;
+      setTabs((prev) => {
+        if (prev.some((t) => t.id === tabId)) return prev;
+        const newTab: DataSourceTab = {
+          kind: "data-source",
+          id: tabId,
+          label: truncateLabel(ds.name),
+          dataSourceId: ds.id,
+          name: ds.name,
+          closeable: true,
+        };
+        return [...prev, newTab];
+      });
+      navigateToTab(tabId);
+    },
+    [navigateToTab],
+  );
 
   const closeTab = useCallback(
     (tabId: string) => {
@@ -141,12 +241,12 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
         const next = prev.filter((t) => t.id !== tabId);
         if (activeTabId === tabId) {
           const newActive = next[Math.max(0, idx - 1)];
-          setActiveTabId(newActive?.id ?? "overview");
+          navigateToTab(newActive?.id ?? "overview");
         }
         return next;
       });
     },
-    [activeTabId],
+    [activeTabId, navigateToTab],
   );
 
   const reorderTabs = useCallback((fromIndex: number, toIndex: number) => {
@@ -211,7 +311,7 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
       tabs={tabs}
       activeTabId={activeTabId}
       notifications={notifications}
-      onTabChange={setActiveTabId}
+      onTabChange={navigateToTab}
       onCloseTab={closeTab}
       onReorderTabs={reorderTabs}
       renderContent={renderContent}

@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@apollo/client/react";
 import { useApolloClient } from "@apollo/client/react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   CreateProjectDocument,
   GetProjectsDocument,
@@ -10,11 +11,8 @@ import { HomeView } from "./HomeView";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
-type Props = {
-  onProjectOpen: (projectId: string, projectName: string) => void;
-};
-
-export function Home({ onProjectOpen }: Props) {
+export function Home() {
+  const navigate = useNavigate();
   const [input, setInput] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -63,7 +61,7 @@ export function Home({ onProjectOpen }: Props) {
         variables: { projectId: project.id, content },
       });
 
-      onProjectOpen(project.id, project.name);
+      navigate(`/project/${project.id}`);
     } catch {
       setUploadError("Upload failed. Please try again.");
     } finally {
@@ -84,7 +82,7 @@ export function Home({ onProjectOpen }: Props) {
       canSubmit={canSubmit}
       onSubmit={handleSubmit}
       projects={projects}
-      onProjectSelect={(id, name) => onProjectOpen(id, name)}
+      onProjectSelect={(id, _name) => navigate(`/project/${id}`)}
       isCreating={isCreating}
       isUploading={isUploading}
       uploadError={uploadError}

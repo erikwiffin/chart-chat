@@ -1,24 +1,29 @@
-import { useApolloClient } from "@apollo/client/react";
+import { useApolloClient, useQuery } from "@apollo/client/react";
 import { useCallback, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { GetProjectDocument } from "../../__generated__/graphql";
 import { ProjectView } from "./ProjectView";
 
 const DEFAULT_LEFT_PERCENT = 33;
 const MIN_LEFT_PERCENT = 15;
 const MAX_LEFT_PERCENT = 80;
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
-type Props = {
-  projectId: string;
-  projectName: string;
-  onHome: () => void;
-};
+export function Project() {
+  const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
+  const { data } = useQuery(GetProjectDocument, {
+    variables: { id: projectId! },
+  });
 
-export function Project({ projectId, projectName, onHome }: Props) {
   const [leftPercent, setLeftPercent] = useState(DEFAULT_LEFT_PERCENT);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<"idle" | "success" | "error">("idle");
+  const [uploadStatus, setUploadStatus] = useState<
+    "idle" | "success" | "error"
+  >("idle");
   const [activeChartId, setActiveChartId] = useState<string | null>(null);
   const client = useApolloClient();
 
@@ -29,7 +34,9 @@ export function Project({ projectId, projectName, onHome }: Props) {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       const percent = ((e.clientX - rect.left) / rect.width) * 100;
-      setLeftPercent(Math.min(MAX_LEFT_PERCENT, Math.max(MIN_LEFT_PERCENT, percent)));
+      setLeftPercent(
+        Math.min(MAX_LEFT_PERCENT, Math.max(MIN_LEFT_PERCENT, percent)),
+      );
     };
 
     const onMouseUp = () => {
@@ -74,7 +81,7 @@ export function Project({ projectId, projectName, onHome }: Props) {
       try {
         const response = await fetch(
           `${API_BASE_URL}/api/projects/${projectId}/upload`,
-          { method: "POST", body: formData }
+          { method: "POST", body: formData },
         );
 
         if (!response.ok) {
@@ -89,17 +96,19 @@ export function Project({ projectId, projectName, onHome }: Props) {
         setTimeout(() => setUploadStatus("idle"), 3000);
       }
     },
-    [projectId, client]
+    [projectId, client],
   );
+
+  if (!data || !data.project) return <div>Loading...</div>;
 
   return (
     <ProjectView
       containerRef={containerRef}
       leftPercent={leftPercent}
       onHandleMouseDown={onHandleMouseDown}
-      projectId={projectId}
-      projectName={projectName}
-      onHome={onHome}
+      projectId={projectId!}
+      projectName={data.project.name}
+      onHome={() => navigate("/")}
       isDragging={isDragging}
       uploadStatus={uploadStatus}
       onDragOver={handleDragOver}

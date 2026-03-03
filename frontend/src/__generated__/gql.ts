@@ -21,6 +21,7 @@ type Documents = {
     "mutation DeleteChart($chartId: ID!) {\n  deleteChart(chartId: $chartId)\n}": typeof types.DeleteChartDocument,
     "mutation DeleteDataSource($dataSourceId: ID!) {\n  deleteDataSource(dataSourceId: $dataSourceId)\n}": typeof types.DeleteDataSourceDocument,
     "query GetChartRevisions($chartId: ID!) {\n  chartRevisions(chartId: $chartId) {\n    id\n    version\n    spec\n    createdAt\n  }\n}": typeof types.GetChartRevisionsDocument,
+    "query GetProject($id: ID!) {\n  project(id: $id) {\n    id\n    name\n  }\n}": typeof types.GetProjectDocument,
     "query GetProjectCharts($id: ID!) {\n  project(id: $id) {\n    id\n    charts {\n      id\n      title\n      spec\n      version\n      createdAt\n      thumbnailUrl\n    }\n  }\n}": typeof types.GetProjectChartsDocument,
     "query GetProjectDataSources($id: ID!) {\n  project(id: $id) {\n    id\n    dataSources {\n      id\n      name\n      sourceType\n      columns\n      rowCount\n      createdAt\n    }\n  }\n}": typeof types.GetProjectDataSourcesDocument,
     "query GetProjectMessages($projectId: ID!) {\n  project(id: $projectId) {\n    id\n    messages {\n      id\n      content\n      role\n      createdAt\n    }\n  }\n}": typeof types.GetProjectMessagesDocument,
@@ -41,6 +42,7 @@ const documents: Documents = {
     "mutation DeleteChart($chartId: ID!) {\n  deleteChart(chartId: $chartId)\n}": types.DeleteChartDocument,
     "mutation DeleteDataSource($dataSourceId: ID!) {\n  deleteDataSource(dataSourceId: $dataSourceId)\n}": types.DeleteDataSourceDocument,
     "query GetChartRevisions($chartId: ID!) {\n  chartRevisions(chartId: $chartId) {\n    id\n    version\n    spec\n    createdAt\n  }\n}": types.GetChartRevisionsDocument,
+    "query GetProject($id: ID!) {\n  project(id: $id) {\n    id\n    name\n  }\n}": types.GetProjectDocument,
     "query GetProjectCharts($id: ID!) {\n  project(id: $id) {\n    id\n    charts {\n      id\n      title\n      spec\n      version\n      createdAt\n      thumbnailUrl\n    }\n  }\n}": types.GetProjectChartsDocument,
     "query GetProjectDataSources($id: ID!) {\n  project(id: $id) {\n    id\n    dataSources {\n      id\n      name\n      sourceType\n      columns\n      rowCount\n      createdAt\n    }\n  }\n}": types.GetProjectDataSourcesDocument,
     "query GetProjectMessages($projectId: ID!) {\n  project(id: $projectId) {\n    id\n    messages {\n      id\n      content\n      role\n      createdAt\n    }\n  }\n}": types.GetProjectMessagesDocument,
@@ -96,6 +98,10 @@ export function graphql(source: "mutation DeleteDataSource($dataSourceId: ID!) {
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "query GetChartRevisions($chartId: ID!) {\n  chartRevisions(chartId: $chartId) {\n    id\n    version\n    spec\n    createdAt\n  }\n}"): (typeof documents)["query GetChartRevisions($chartId: ID!) {\n  chartRevisions(chartId: $chartId) {\n    id\n    version\n    spec\n    createdAt\n  }\n}"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "query GetProject($id: ID!) {\n  project(id: $id) {\n    id\n    name\n  }\n}"): (typeof documents)["query GetProject($id: ID!) {\n  project(id: $id) {\n    id\n    name\n  }\n}"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
