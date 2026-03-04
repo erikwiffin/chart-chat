@@ -13,9 +13,7 @@ router = APIRouter(prefix="/api")
 
 
 @router.get("/data-sources/{data_source_id}/data")
-async def get_data_source_data(
-    data_source_id: int, db: Session = Depends(get_db)
-):
+async def get_data_source_data(data_source_id: int, db: Session = Depends(get_db)):
     ds = db.query(DataSource).filter(DataSource.id == data_source_id).first()
     if not ds:
         raise HTTPException(status_code=404, detail="Data source not found.")
@@ -70,7 +68,7 @@ async def upload_data_source(
 
 @router.get("/charts/{chart_id}/thumbnail")
 async def get_chart_thumbnail(chart_id: int):
-    path = THUMBNAILS_DIR / f"chart_{chart_id}.png"
+    path = THUMBNAILS_DIR / f"chart_{chart_id}.svg"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Thumbnail not found.")
-    return FileResponse(path, media_type="image/png")
+    return FileResponse(path, media_type="image/svg+xml")
