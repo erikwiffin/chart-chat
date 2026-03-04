@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 type Chart = {
   id: string;
@@ -88,7 +89,7 @@ export function OverviewPanelView({
                 {chart.thumbnailUrl && (
                   <figure>
                     <img
-                      src={API_BASE_URL.replace(/\/$/, "") + chart.thumbnailUrl}
+                      src={API_BASE_URL + chart.thumbnailUrl}
                       alt={chart.title}
                       className="w-full object-contain rounded-t"
                     />

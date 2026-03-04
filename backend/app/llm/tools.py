@@ -144,7 +144,7 @@ def _render_chart(ctx: ToolContext, chart_id: str) -> list:
         ]
     file_path = _get_file_path_for_ds(ctx, chart.data_source_id)
     try:
-        png_bytes = render_spec_to_png(dict(chart.spec), file_path)
+        png_bytes = render_spec_to_png(chart.spec, file_path)
     except Exception as e:
         return [{"type": "text", "text": f"Render failed: {e}"}]
     b64 = base64.b64encode(png_bytes).decode("utf-8")

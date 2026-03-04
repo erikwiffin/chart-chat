@@ -68,7 +68,7 @@ async def upload_data_source(
 
 @router.get("/charts/{chart_id}/thumbnail")
 async def get_chart_thumbnail(chart_id: int):
-    path = THUMBNAILS_DIR / f"chart_{chart_id}.svg"
+    path = THUMBNAILS_DIR / f"chart_{chart_id}.png"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Thumbnail not found.")
-    return FileResponse(path, media_type="image/svg+xml")
+    return FileResponse(path, media_type="image/png")

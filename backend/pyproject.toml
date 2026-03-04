@@ -18,6 +18,7 @@ dependencies = [
     "jsonpatch>=1.33",
     "click>=8.0.0",
     "pydantic-settings>=2.13.1",
+    "cairosvg>=2.8.2",
 ]
 
 [dependency-groups]

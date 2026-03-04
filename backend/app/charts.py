@@ -3,9 +3,9 @@
 import copy
 import json
 import logging
-from warnings import deprecated
 
 import altair as alt
+import cairosvg
 import vl_convert as vlc
 
 from .data import read_csv_records
@@ -32,18 +32,15 @@ def inject_inline_data(spec: dict, file_path: str) -> dict:
     return spec
 
 
-@deprecated("Use render_spec_to_svg instead.")
 def render_spec_to_png(spec: dict, file_path: str | None = None) -> bytes:
-    """Render a Vega-Lite spec to PNG bytes. Injects CSV data if file_path provided.
-    NOTE: this is deprecated. Use render_spec_to_svg instead.
-    """
-    spec = copy.deepcopy(spec)
-    if file_path:
-        spec = inject_inline_data(spec, file_path)
+    """Render a Vega-Lite spec to PNG bytes. Injects CSV data if file_path provided."""
+    svg = render_spec_to_svg(spec, file_path)
+    png = cairosvg.svg2png(svg)
 
-    spec["width"] = 400
-    spec["height"] = 300
-    return vlc.vegalite_to_png(json.dumps(spec))
+    if not png:
+        raise ValueError("Failed to render spec to PNG")
+
+    return png
 
 
 def render_spec_to_svg(spec: dict, file_path: str | None = None) -> str:
@@ -52,14 +49,14 @@ def render_spec_to_svg(spec: dict, file_path: str | None = None) -> str:
     if file_path:
         spec = inject_inline_data(spec, file_path)
 
-    spec["width"] = 800
-    spec["height"] = 600
+    spec["width"] = 400
+    spec["height"] = 300
     return vlc.vegalite_to_svg(json.dumps(spec))
 
 
 def generate_chart_thumbnail(spec: dict, file_path: str | None, chart_id: int) -> None:
     """Render a chart spec to PNG and save as a thumbnail."""
     # TODO: this should go in the project directory, not need mkdir
-    svg_str = render_spec_to_svg(spec, file_path)
+    png_bytes = render_spec_to_png(spec, file_path)
     THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
-    (THUMBNAILS_DIR / f"chart_{chart_id}.svg").write_text(svg_str)
+    (THUMBNAILS_DIR / f"chart_{chart_id}.png").write_bytes(png_bytes)

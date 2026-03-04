@@ -292,7 +292,7 @@ def resolve_chart_created_at(obj, *_):
 
 @chart_type.field("thumbnailUrl")
 def resolve_chart_thumbnail_url(obj, *_):
-    path = THUMBNAILS_DIR / f"chart_{obj.id}.svg"
+    path = THUMBNAILS_DIR / f"chart_{obj.id}.png"
     return f"/api/charts/{obj.id}/thumbnail" if path.exists() else None
 
 

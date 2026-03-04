@@ -64,7 +64,7 @@ def render_thumbnail(chart_id: int):
         chart = db.query(Chart).filter(Chart.id == chart_id).one()
         file_path = _get_data_source_file_path(db, chart)
         generate_chart_thumbnail(chart.spec, file_path, chart.id)
-        thumbnail_path = THUMBNAILS_DIR / f"chart_{chart_id}.svg"
+        thumbnail_path = THUMBNAILS_DIR / f"chart_{chart_id}.png"
         click.echo(str(thumbnail_path))
     finally:
         db.close()
