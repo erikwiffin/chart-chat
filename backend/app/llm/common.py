@@ -1,15 +1,15 @@
 """LLM factory shared across submodules."""
 
-import os
-
 from langchain_openai import ChatOpenAI
+
+from ..config import settings
 
 
 def _get_llm(tags: list[str] | None = None) -> ChatOpenAI:
     kwargs: dict = {
-        "api_key": os.environ["LITELLM_API_KEY"],  # pyright: ignore[reportArgumentType]
-        "base_url": os.environ["LITELLM_BASE_URL"],
-        "model": os.environ["LITELLM_MODEL"],
+        "api_key": settings.litellm_api_key,  # pyright: ignore[reportArgumentType]
+        "base_url": settings.litellm_base_url,
+        "model": settings.litellm_model,
     }
     if tags:
         kwargs["extra_body"] = {"metadata": {"tags": tags}}

@@ -1,9 +1,10 @@
 import csv
 import io
-import os
 from pathlib import Path
 
-UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", "uploads"))
+from .config import settings
+
+UPLOADS_DIR = Path(settings.uploads_dir)
 THUMBNAILS_DIR = UPLOADS_DIR / "thumbnails"
 
 

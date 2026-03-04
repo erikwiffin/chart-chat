@@ -2,40 +2,24 @@
 
 import operator
 from dataclasses import dataclass, field
-from typing import Annotated, List, Protocol, Tuple, Union
+from typing import Annotated, List, Tuple, Union
 
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 from typing_extensions import TypedDict
 
 from ..models import Chart, DataSource
 
 
-class StatusCallback(Protocol):
-    """Protocol for status callbacks: async callable with named params task and message."""
-
-    async def __call__(self, task: str, message: str) -> None: ...
-
-
-class ChartSaveCallback(Protocol):
-    """Protocol for immediate chart save: async callable receiving the chart."""
-
-    async def __call__(self, chart: Chart) -> None: ...
-
-
-class ChartRevertCallback(Protocol):
-    """Protocol for chart revert: async callable receiving the chart and target version."""
-
-    async def __call__(self, chart: Chart, version: int) -> str: ...
-
-
 @dataclass
 class ToolContext:
-    active_chart_id: str | None
+    db: Session
     messages: list[dict]
     data_sources: list[DataSource]
+    project_id: int
+    active_chart_id: str | None = None
     charts: list[Chart] = field(default_factory=list)
-    on_chart_saved: ChartSaveCallback | None = None
-    on_chart_reverted: ChartRevertCallback | None = None
+    modified_chart_ids: set[int] = field(default_factory=set)
 
 
 class PlanExecute(TypedDict):

@@ -1,17 +1,12 @@
 """Standalone SQLite FTS index for Vega-Lite markdown documentation."""
 
-import os
 import re
 import sqlite3
 from pathlib import Path
 
-# Project root: backend/app -> backend -> chart-chat
-_APP_DIR = Path(__file__).resolve().parent
-_BACKEND_DIR = _APP_DIR.parent
-_PROJECT_ROOT = _BACKEND_DIR.parent
+from .config import settings
 
-DEFAULT_DOCS_DIR = _PROJECT_ROOT / "vega-lite-docs"
-DOCS_DIR = Path(os.getenv("VEGA_LITE_DOCS_DIR", str(DEFAULT_DOCS_DIR)))
+DOCS_DIR = Path(settings.vega_lite_docs_dir)
 DB_PATH = DOCS_DIR / "docs.db"
 
 _FRONTMATTER_TITLE_RE = re.compile(r"^\s*title:\s*(.+)$", re.MULTILINE)

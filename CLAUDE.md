@@ -37,11 +37,15 @@ The backend serves a GraphQL playground at `http://localhost:8000/graphql/`.
 
 ### Backend Structure
 
-- `backend/app/schema.py` — GraphQL type definitions (SDL string)
-- `backend/app/models.py` — SQLAlchemy ORM models (User, Project, Message)
-- `backend/app/resolvers.py` — GraphQL query and mutation resolvers
+- `backend/app/config.py` — Centralized settings via pydantic-settings
+- `backend/app/schema.graphql` — GraphQL type definitions (SDL)
+- `backend/app/models.py` — SQLAlchemy ORM models (User, Project, Message, DataSource, Chart, ChartRevision)
 - `backend/app/database.py` — SQLAlchemy engine, session factory, declarative base
-- `backend/app/main.py` — FastAPI app wiring (CORS, GraphQL endpoint, DB init)
+- `backend/app/app.py` — FastAPI app wiring (CORS, GraphQL endpoint, router)
+- `backend/app/api/resolvers.py` — Thin GraphQL query/mutation/subscription resolvers
+- `backend/app/api/routes.py` — REST endpoints (data sources, uploads, thumbnails) using APIRouter + Depends
+- `backend/app/services/chart_service.py` — Chart lifecycle: create, update, revert, delete (version/revision/thumbnail)
+- `backend/app/services/generation.py` — LLM response orchestration
 
 ### Frontend Structure
 
@@ -54,8 +58,8 @@ Components follow a **logic/view split**: each feature has a `Foo.tsx` (data fet
 ### GraphQL Workflow
 
 When adding or modifying GraphQL operations:
-1. Update `backend/app/schema.py` with new types/fields
-2. Update `backend/app/resolvers.py` with resolver logic
+1. Update `backend/app/schema.graphql` with new types/fields
+2. Update `backend/app/api/resolvers.py` with resolver logic
 3. Add/update `.graphql` document files in `frontend/src/graphql/`
 4. Run `npm run codegen` in `/frontend` to regenerate TypeScript types
 5. Import generated document constants (e.g., `GetProjectsDocument`) in components

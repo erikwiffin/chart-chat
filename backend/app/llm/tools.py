@@ -3,23 +3,35 @@
 import base64
 import json
 import logging
+import re
 
 import jsonpatch
 from langchain_core.tools import tool
 
+from app.services import chart_service
+
 from .. import vega_lite_docs as vega_lite_docs_module
 from ..charts import render_spec_to_png, validate_vega_lite_spec
-from ..models import Chart
 from .context import ToolContext
 
 logger = logging.getLogger(__name__)
 
+_DATA_SOURCE_URL_RE = re.compile(r"/api/data-sources/(\d+)/data")
+
 
 def _find_chart(ctx: ToolContext, chart_id: str):
-    """Find a chart by ID. Returns (chart, is_existing)."""
+    """Find a chart by ID (supports both DB IDs and 'new-N' synthetic IDs)."""
     for chart in ctx.charts:
         if chart.id is not None and str(chart.id) == chart_id:
             return chart
+    if chart_id.startswith("new-"):
+        try:
+            idx = int(chart_id[4:])
+            new_charts = [c for c in ctx.charts if c.id is None]
+            if 0 <= idx < len(new_charts):
+                return new_charts[idx]
+        except (ValueError, IndexError):
+            pass
     return None
 
 
@@ -75,21 +87,25 @@ def _describe_data(ctx: ToolContext, source_name: str) -> str:
     return f"Data source '{source_name}' not found."
 
 
-def _create_chart(ctx: ToolContext, title: str, spec: dict) -> str:
+async def _create_chart(ctx: ToolContext, title: str, spec: dict) -> str:
     logger.info("Tool create_chart called: title=%r", title)
     spec = dict(spec)
     ds_id = None
-    spec["data"] = {
-        "values": [],
-    }
-    error = validate_vega_lite_spec(spec)
+    data = spec.pop("data", None)
+    if data and isinstance(data, dict) and "url" in data:
+        m = _DATA_SOURCE_URL_RE.search(data["url"])
+        if m:
+            ds_id = int(m.group(1))
+    error = validate_vega_lite_spec(spec | {"data": {"values": []}})
     if error:
         logger.info("Tool create_chart: invalid spec for %r: %s", title, error)
         return f"Invalid Vega-Lite spec: {error}"
-    chart = Chart(title=title, spec=spec, data_source_id=ds_id)
+
+    chart = await chart_service.create_chart(ctx.db, ctx.project_id, title, spec, ds_id)
+    ctx.db.expunge(instance=chart)
     ctx.charts.append(chart)
     logger.info("Tool create_chart: created %r successfully", title)
-    return f"Chart '{title}' created."
+    return f"Chart created. id={chart.id} title={chart.title}."
 
 
 def _list_charts(ctx: ToolContext) -> str:
@@ -120,7 +136,12 @@ def _render_chart(ctx: ToolContext, chart_id: str) -> list:
     logger.info("Tool render_chart called: chart_id=%r", chart_id)
     chart = _find_chart(ctx, chart_id)
     if chart is None:
-        return [{"type": "text", "text": f"Chart '{chart_id}' not found."}]
+        return [
+            {
+                "type": "text",
+                "text": f"Chart '{chart_id}' not found. Try calling list_charts to find the chart ID.",
+            }
+        ]
     file_path = _get_file_path_for_ds(ctx, chart.data_source_id)
     try:
         png_bytes = render_spec_to_png(dict(chart.spec), file_path)
@@ -151,10 +172,9 @@ async def _edit_chart(ctx: ToolContext, chart_id: str, patch: list) -> str:
     error = validate_vega_lite_spec(new_spec | {"data": {"values": []}})
     if error:
         return f"Patched spec is invalid: {error}"
-    chart.spec = new_spec
-    if chart.id is not None:
-        if ctx.on_chart_saved:
-            await ctx.on_chart_saved(chart)
+
+    await chart_service.update_chart(ctx.db, chart, new_spec)
+    ctx.modified_chart_ids.add(chart.id)
     return f"Chart '{chart_id}' updated successfully."
 
 
@@ -163,9 +183,13 @@ async def _revert_chart(ctx: ToolContext, chart_id: str, version: int) -> str:
     chart = _find_chart(ctx, chart_id)
     if chart is None:
         return f"Chart '{chart_id}' not found."
-    if ctx.on_chart_reverted is None:
+    if chart.id is None or ctx.db is None:
         return "Chart revert is not available."
-    return await ctx.on_chart_reverted(chart, version)
+
+    reverted = await chart_service.revert_chart(ctx.db, chart, version)
+    ctx.db.expunge(instance=reverted)
+    ctx.modified_chart_ids.add(reverted.id)
+    return f"Chart {chart.id} reverted to version {version}."
 
 
 def build_tools(ctx: ToolContext) -> dict:
@@ -198,9 +222,9 @@ def build_tools(ctx: ToolContext) -> dict:
         return _describe_data(ctx, source_name)
 
     @tool
-    def create_chart(title: str, spec: dict) -> str:
+    async def create_chart(title: str, spec: dict) -> str:
         """Create a Vega-Lite chart. Call this when ready to produce a visualization."""
-        return _create_chart(ctx, title, spec)
+        return await _create_chart(ctx, title, spec)
 
     @tool
     def list_charts() -> str:
