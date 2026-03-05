@@ -16,7 +16,11 @@ logger = logging.getLogger(__name__)
 
 def make_replan_step(llm, ctx: ToolContext):
     tools = build_tools(ctx)
-    replanner_tools = [tools["render_chart"], tools["get_conversation_history"]]
+    replanner_tools = [
+        tools["list_charts"],
+        tools["render_chart"],
+        tools["get_conversation_history"],
+    ]
     replanner_agent = create_agent(
         llm,
         replanner_tools,

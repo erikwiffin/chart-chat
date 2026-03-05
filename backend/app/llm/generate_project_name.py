@@ -2,12 +2,14 @@
 
 from langchain_core.messages import HumanMessage
 
-from .common import _get_llm
+from .common import get_llm
 
 
 async def generate_project_name(prompt: str, project_id: int | None = None) -> str:
-    tags = [f"project:{project_id}", "task:generate-project-name"] if project_id else None
-    llm = _get_llm(tags=tags)
+    tags = (
+        [f"project:{project_id}", "task:generate-project-name"] if project_id else None
+    )
+    llm = get_llm(tags=tags)
     msg = HumanMessage(
         content=(
             "Generate a 2-4 word title-case project name for a conversation starting with: "

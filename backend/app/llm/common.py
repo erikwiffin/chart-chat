@@ -5,7 +5,7 @@ from langchain_openai import ChatOpenAI
 from ..config import settings
 
 
-def _get_llm(tags: list[str] | None = None) -> ChatOpenAI:
+def get_llm(tags: list[str] | None = None) -> ChatOpenAI:
     kwargs: dict = {
         "api_key": settings.litellm_api_key,  # pyright: ignore[reportArgumentType]
         "base_url": settings.litellm_base_url,

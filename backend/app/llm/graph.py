@@ -2,7 +2,7 @@
 
 from langgraph.graph import END, START, StateGraph
 
-from .common import _get_llm
+from .common import get_llm
 from .context import PlanExecute, ToolContext
 from .execute import make_execute_step
 from .plan import make_plan_step
@@ -15,9 +15,9 @@ def build_plan_execute_graph(ctx: ToolContext):
             return None
         return [f"project:{ctx.project_id}", f"task:{task}"]
 
-    plan_step = make_plan_step(_get_llm(tags("plan")), ctx)
-    execute_step = make_execute_step(_get_llm(tags("execute")), ctx)
-    replan_step = make_replan_step(_get_llm(tags("replan")), ctx)
+    plan_step = make_plan_step(get_llm(tags("plan")), ctx)
+    execute_step = make_execute_step(get_llm(tags("execute")), ctx)
+    replan_step = make_replan_step(get_llm(tags("replan")), ctx)
 
     workflow = StateGraph(PlanExecute)
     workflow.add_node("planner", plan_step)

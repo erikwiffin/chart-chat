@@ -14,6 +14,22 @@ model_list:
     model_info:
       max_input_tokens: 4096
 
+  # Custom models
+  - model_name: unsloth/Qwen3.5-35B-A3B-GGUF
+    litellm_params:
+      model: unsloth/Qwen3.5-35B-A3B-GGUF
+      api_base: http://host.docker.internal:1234/v1
+      custom_llm_provider: openai
+      use_in_pass_through: false
+      use_litellm_proxy: false
+      merge_reasoning_content_in_choices: false
+    model_info:
+      id: 779daa9c-8a78-47fe-8a61-91acb73f7dc5
+      db_model: true
+      mode: chat
+      access_via_team_ids: []
+      direct_access: true
+
   # OpenAI models (uncomment if needed)
   # - model_name: gpt-4o
   #   litellm_params:
