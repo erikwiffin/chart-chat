@@ -1,0 +1,10 @@
+query GetChart($id: ID!) {
+  chart(id: $id) {
+    id
+    title
+    spec
+    version
+    createdAt
+    thumbnailUrl
+  }
+}

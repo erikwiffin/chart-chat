@@ -40,9 +40,11 @@ export function ChatPanel({
   useSubscription(StatusUpdateDocument, {
     variables: { projectId },
     onData: ({ data }) => {
-      console.log("Status update: %o", data);
       const update = data.data?.statusUpdate;
-      if (update) setStatusMessage(update.message);
+      if (update) {
+        setIsGenerating(update.isGenerating);
+        setStatusMessage(update.isGenerating ? update.message : null);
+      }
     },
   });
 
@@ -61,24 +63,21 @@ export function ChatPanel({
         const newMessage = subscriptionData.data?.messageAdded;
         if (!newMessage || !prev.project)
           return prev as GetProjectMessagesQuery;
-        setIsGenerating(false);
-        setStatusMessage(null);
+        const existing = prev.project.messages ?? [];
+        if (existing.some((m) => m.id === newMessage.id))
+          return prev as GetProjectMessagesQuery;
         return {
           ...prev,
           project: {
             ...prev.project,
-            messages: [...(prev.project.messages ?? []), newMessage],
+            messages: [...existing, newMessage],
           },
         } as GetProjectMessagesQuery;
       },
     });
   }, [projectId, subscribeToMore]);
 
-  const [sendMessage] = useMutation(SendMessageDocument, {
-    refetchQueries: [
-      { query: GetProjectMessagesDocument, variables: { projectId } },
-    ],
-  });
+  const [sendMessage] = useMutation(SendMessageDocument);
 
   const [stopGeneration] = useMutation(StopGenerationDocument);
 
@@ -95,8 +94,6 @@ export function ChatPanel({
 
   const handleStop = async () => {
     await stopGeneration({ variables: { projectId } });
-    setIsGenerating(false);
-    setStatusMessage(null);
   };
 
   return (

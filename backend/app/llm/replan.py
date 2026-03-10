@@ -4,8 +4,10 @@ import logging
 from typing import Literal
 
 from langchain.agents import create_agent
+from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
+from pydantic import ValidationError
 
 from .context import Act, PlanExecute, Response, ToolContext
 from .prompts import REPLANNER_TEMPLATE
@@ -36,7 +38,10 @@ def make_replan_step(llm, ctx: ToolContext):
         "If they indicated more steps are needed, use Plan with the list of remaining steps.\n\n"
         "Conversation:\n{conversation}"
     )
-    act_parser = act_parser_prompt | llm.with_structured_output(Act)
+    act_parser = (act_parser_prompt | llm.with_structured_output(Act)).with_retry(
+        retry_if_exception_type=(ValidationError, OutputParserException),
+        stop_after_attempt=3,
+    )
 
     def format_message_content(m: BaseMessage) -> str:
         if isinstance(m, HumanMessage):

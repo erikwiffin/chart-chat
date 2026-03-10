@@ -1,0 +1,5 @@
+subscription ChartDeleted($projectId: ID!) {
+  chartDeleted(projectId: $projectId) {
+    id
+  }
+}

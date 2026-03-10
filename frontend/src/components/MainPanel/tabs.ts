@@ -9,8 +9,6 @@ export type ChartTab = {
   id: string;
   label: string;
   title: string;
-  spec: string;
-  version: number;
   closeable: true;
 };
 

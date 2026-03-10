@@ -7,9 +7,8 @@ import {
   GetProjectsDocument,
   SendMessageDocument,
 } from "../../__generated__/graphql";
+import { API_BASE_URL } from "../../config";
 import { HomeView } from "./HomeView";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 export function Home() {
   const navigate = useNavigate();

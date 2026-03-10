@@ -4,10 +4,8 @@ import {
   DeleteDataSourceDocument,
   GetProjectDataSourcesDocument,
 } from "../../__generated__/graphql";
+import { API_BASE_URL } from "../../config";
 import { DataSourceDetailTabView } from "./DataSourceDetailTabView";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 type PreviewData = {
   preview_rows: Record<string, unknown>[];

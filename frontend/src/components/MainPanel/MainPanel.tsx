@@ -3,7 +3,7 @@ import { useSubscription, useQuery } from "@apollo/client/react";
 import { useMatch, useNavigate } from "react-router-dom";
 import {
   ChartAddedDocument,
-  ChartUpdatedDocument,
+  ChartDeletedDocument,
   GetProjectChartsDocument,
   GetProjectDataSourcesDocument,
 } from "../../__generated__/graphql";
@@ -19,7 +19,7 @@ type Props = {
   onActiveChartChange: (chartId: string | null) => void;
 };
 
-type Chart = { id: string; title: string; spec: string; version: number };
+type Chart = { id: string; title: string; spec: string; version: number; thumbnailUrl?: string | null };
 type DataSource = {
   id: string;
   name: string;
@@ -40,8 +40,8 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
   const activeTabId = urlChartId
     ? `chart-${urlChartId}`
     : urlDataSourceId
-    ? `ds-${urlDataSourceId}`
-    : "overview";
+      ? `ds-${urlDataSourceId}`
+      : "overview";
 
   const [tabs, setTabs] = useState<AppTab[]>([
     { id: "overview", label: "Overview", closeable: false },
@@ -76,13 +76,14 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
   }, [tabs, storageKey]);
 
   // Restore open tabs from localStorage (once, when data is available)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (hasInitialized.current) return;
     if (!chartsData || !dataSourcesData) return;
     hasInitialized.current = true;
 
-    const persistedIds: string[] = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
+    const persistedIds: string[] = JSON.parse(
+      localStorage.getItem(storageKey) ?? "[]",
+    );
     const idsToOpen = new Set(persistedIds);
     if (urlChartId) idsToOpen.add(`chart-${urlChartId}`);
     if (urlDataSourceId) idsToOpen.add(`ds-${urlDataSourceId}`);
@@ -103,8 +104,6 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
             id: tabId,
             label: truncateLabel(chart.title),
             title: chart.title,
-            spec: chart.spec,
-            version: chart.version,
             closeable: true,
           });
         }
@@ -123,8 +122,16 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
       }
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTabs(restoredTabs);
-  }, [chartsData, dataSourcesData]);
+  }, [
+    chartsData,
+    dataSourcesData,
+    urlChartId,
+    urlDataSourceId,
+    navigate,
+    storageKey,
+  ]);
 
   const showNotification = useCallback((message: string) => {
     const id = nextNotificationId.current++;
@@ -160,8 +167,6 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
           id: tabId,
           label: truncateLabel(newChart.title),
           title: newChart.title,
-          spec: newChart.spec,
-          version: newChart.version,
           closeable: true,
         };
         return [...prev, newTab];
@@ -170,26 +175,20 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
     },
   });
 
-  useSubscription(ChartUpdatedDocument, {
+  useSubscription(ChartDeletedDocument, {
     variables: { projectId },
     onData: ({ data }) => {
-      const updatedChart = data.data?.chartUpdated;
-      if (!updatedChart) return;
-      const tabId = `chart-${updatedChart.id}`;
-      setTabs((prev) =>
-        prev.map((tab) => {
-          if (tab.id === tabId && "kind" in tab && tab.kind === "chart") {
-            return {
-              ...tab,
-              spec: updatedChart.spec,
-              title: updatedChart.title,
-              version: updatedChart.version,
-              label: truncateLabel(updatedChart.title),
-            };
-          }
-          return tab;
-        }),
-      );
+      const event = data.data?.chartDeleted;
+      if (!event) return;
+      const tabId = `chart-${event.id}`;
+      setTabs((prev) => {
+        if (!prev.some((t) => t.id === tabId)) return prev;
+        return prev.filter((t) => t.id !== tabId);
+      });
+      if (activeTabId === tabId) {
+        navigateToTab("overview");
+      }
+      showNotification("Chart deleted");
     },
   });
 
@@ -203,8 +202,6 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
           id: tabId,
           label: truncateLabel(chart.title),
           title: chart.title,
-          spec: chart.spec,
-          version: chart.version,
           closeable: true,
         };
         return [...prev, newTab];
@@ -277,9 +274,6 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
             key={chartId}
             chartId={chartId}
             projectId={projectId}
-            title={tab.title}
-            spec={tab.spec}
-            version={tab.version}
             onDelete={() => {
               closeTab(tab.id);
               showNotification("Chart deleted");

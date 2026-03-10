@@ -4,8 +4,10 @@ import json
 import logging
 
 from langchain.agents import create_agent
+from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
+from pydantic import ValidationError
 
 from .context import Plan, PlanExecute, ToolContext
 from .prompts import PLANNER_SYSTEM_PROMPT
@@ -25,7 +27,10 @@ def make_plan_step(llm, ctx: ToolContext):
         "Based on the planner's response below, extract the ordered steps as a Plan.\n\n"
         "Planner response:\n{response}"
     )
-    plan_parser = plan_parser_prompt | llm.with_structured_output(Plan)
+    plan_parser = (plan_parser_prompt | llm.with_structured_output(Plan)).with_retry(
+        retry_if_exception_type=(ValidationError, OutputParserException),
+        stop_after_attempt=3,
+    )
 
     async def plan_step(state: PlanExecute):
         plan_input = state["input"]

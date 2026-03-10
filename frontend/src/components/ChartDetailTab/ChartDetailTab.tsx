@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { useMutation, useQuery } from "@apollo/client/react";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useSubscription } from "@apollo/client/react";
 import { compile } from "vega-lite";
 import {
+  ChartUpdatedDocument,
   DeleteChartDocument,
+  GetChartDocument,
   GetChartRevisionsDocument,
   GetProjectChartsDocument,
   RevertChartDocument,
@@ -13,23 +15,58 @@ import { ChartDetailTabView } from "./ChartDetailTabView";
 type Props = {
   chartId: string;
   projectId: string;
-  title: string;
-  spec: string;
-  version: number;
   onDelete: () => void;
 };
 
-export function ChartDetailTab({ chartId, projectId, title, spec, version, onDelete }: Props) {
+export function ChartDetailTab({ chartId, projectId, onDelete }: Props) {
+  const { data: chartData } = useQuery(GetChartDocument, {
+    variables: { id: chartId },
+  });
+
+  const chart = chartData?.chart;
+  const title = chart?.title ?? "";
+  const spec = chart?.spec ?? "{}";
+  const version = chart?.version ?? 1;
+
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [editTitle, setEditTitle] = useState(title);
-  const [editSpec, setEditSpec] = useState(
-    JSON.stringify(JSON.parse(spec), null, 4),
-  );
+  const [editSpec, setEditSpec] = useState("{}");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [previewVersion, setPreviewVersion] = useState<number | null>(null);
+
+  // Sync edit fields when chart data loads or changes externally (only in view mode)
+  useEffect(() => {
+    if (!chart) return;
+    setEditTitle(chart.title);
+    if (mode === "view") {
+      try {
+        setEditSpec(JSON.stringify(JSON.parse(chart.spec), null, 4));
+      } catch {
+        setEditSpec(chart.spec);
+      }
+    }
+  }, [chart?.title, chart?.spec, chart?.version]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Subscribe to chart updates for this specific chart
+  useSubscription(ChartUpdatedDocument, {
+    variables: { projectId },
+    onData: ({ client, data }) => {
+      const updated = data.data?.chartUpdated;
+      if (!updated || updated.id !== chartId) return;
+      client.cache.modify({
+        id: client.cache.identify({ __typename: "Chart", id: chartId }),
+        fields: {
+          title: () => updated.title,
+          spec: () => updated.spec,
+          version: () => updated.version,
+          thumbnailUrl: () => updated.thumbnailUrl,
+        },
+      });
+    },
+  });
 
   const { data: revisionsData } = useQuery(GetChartRevisionsDocument, {
     variables: { chartId },
@@ -85,7 +122,12 @@ export function ChartDetailTab({ chartId, projectId, title, spec, version, onDel
 
   function handleCancel() {
     setMode("view");
-    setEditSpec(spec);
+    try {
+      setEditSpec(JSON.stringify(JSON.parse(spec), null, 4));
+    } catch {
+      setEditSpec(spec);
+    }
+    setEditTitle(title);
     setValidationError(null);
   }
 
@@ -131,6 +173,8 @@ export function ChartDetailTab({ chartId, projectId, title, spec, version, onDel
     });
     setPreviewVersion(null);
   }
+
+  if (!chart) return <div className="flex items-center justify-center h-full"><span className="loading loading-spinner" /></div>;
 
   return (
     <ChartDetailTabView

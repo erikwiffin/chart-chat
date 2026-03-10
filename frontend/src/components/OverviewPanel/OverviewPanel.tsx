@@ -3,6 +3,7 @@ import { useQuery } from "@apollo/client/react";
 import type { GetProjectChartsQuery } from "../../__generated__/graphql";
 import {
   ChartAddedDocument,
+  ChartDeletedDocument,
   GetProjectChartsDocument,
   GetProjectDataSourcesDocument,
 } from "../../__generated__/graphql";
@@ -36,7 +37,7 @@ export function OverviewPanel({ projectId, onOpenChart, onOpenDataSource }: Prop
   });
 
   useEffect(() => {
-    return subscribeToMore({
+    const unsubAdd = subscribeToMore({
       document: ChartAddedDocument,
       variables: { projectId },
       updateQuery: (prev, { subscriptionData }): GetProjectChartsQuery => {
@@ -54,6 +55,28 @@ export function OverviewPanel({ projectId, onOpenChart, onOpenDataSource }: Prop
         } as GetProjectChartsQuery;
       },
     });
+
+    const unsubDelete = subscribeToMore({
+      document: ChartDeletedDocument,
+      variables: { projectId },
+      updateQuery: (prev, { subscriptionData }): GetProjectChartsQuery => {
+        const event = subscriptionData.data?.chartDeleted;
+        if (!event || !prev.project) return prev as GetProjectChartsQuery;
+        const existing = prev.project.charts ?? [];
+        return {
+          ...prev,
+          project: {
+            ...prev.project,
+            charts: existing.filter((c) => c.id !== event.id),
+          },
+        } as GetProjectChartsQuery;
+      },
+    });
+
+    return () => {
+      unsubAdd();
+      unsubDelete();
+    };
   }, [projectId, subscribeToMore]);
 
   const { data: dsData } = useQuery(GetProjectDataSourcesDocument, {

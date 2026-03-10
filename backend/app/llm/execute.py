@@ -5,7 +5,6 @@ import logging
 from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage
 
-from ..pubsub import pubsub
 from .context import PlanExecute, ToolContext
 from .prompts import EXECUTOR_SYSTEM_PROMPT
 from .summarize_task import summarize_task
@@ -26,8 +25,8 @@ def make_execute_step(llm, ctx: ToolContext):
         logger.info("Executing step 1/%d: %s", len(plan), task)
         if ctx.project_id is not None:
             summary = await summarize_task(task, project_id=ctx.project_id)
-            await pubsub.publish(
-                f"status:{ctx.project_id}", {"task": task, "message": summary}
+            await ctx.pubsub.publish(
+                "status", {"task": task, "message": summary, "isGenerating": True}
             )
         past = "\n".join(f"- {s}: {r}" for s, r in state.get("past_steps", []))
         task_input = f"Plan:\n{plan_str}\n\nCompleted steps:\n{past}\n\nExecute: {task}"

@@ -16,6 +16,11 @@ async def generate_assistant_response(
 ):
     db = SessionLocal()
     try:
+        await pubsub.publish(
+            f"status:{project_id}",
+            {"task": "", "message": "Thinking...", "isGenerating": True},
+        )
+
         project = db.query(Project).filter(Project.id == project_id).first()
         if not project:
             return
@@ -37,13 +42,8 @@ async def generate_assistant_response(
             active_chart_id=active_chart_id,
         )
 
-        # Persist new and modified charts
-        # TODO: persistence is already happening, but we need to publish earlier
+        # Expunge charts from the session (publishing now happens in tools)
         for chart in ctx.charts:
-            if chart.id is None:
-                await pubsub.publish(f"chart:{project_id}", chart)
-            elif chart.id in ctx.modified_chart_ids:
-                await pubsub.publish(f"chart_updated:{project_id}", chart)
             db.expunge(instance=chart)
 
         # Save assistant message
@@ -53,7 +53,7 @@ async def generate_assistant_response(
         db.add(assistant_msg)
         db.commit()
         db.refresh(assistant_msg)
-        await pubsub.publish(f"project:{project_id}", assistant_msg)
+        await pubsub.publish(f"message_added:{project_id}", assistant_msg)
     except Exception as e:
         logger.error("Error generating assistant response: %s", e, exc_info=True)
         try:
@@ -65,10 +65,14 @@ async def generate_assistant_response(
             db.add(error_msg)
             db.commit()
             db.refresh(error_msg)
-            await pubsub.publish(f"project:{project_id}", error_msg)
+            await pubsub.publish(f"message_added:{project_id}", error_msg)
         except Exception:
             logger.exception("Failed to send error message to frontend")
     finally:
+        await pubsub.publish(
+            f"status:{project_id}",
+            {"task": "", "message": "", "isGenerating": False},
+        )
         db.close()
 
 

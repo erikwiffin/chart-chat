@@ -3,6 +3,7 @@ type Query {
   users: [User!]!
   projects: [Project!]!
   project(id: ID!): Project
+  chart(id: ID!): Chart
   chartRevisions(chartId: ID!): [ChartRevision!]!
 }
 
@@ -23,12 +24,18 @@ type Subscription {
   projectNameUpdated(projectId: ID!): Project!
   chartAdded(projectId: ID!): Chart!
   chartUpdated(projectId: ID!): Chart!
+  chartDeleted(projectId: ID!): ChartDeletedEvent!
   statusUpdate(projectId: ID!): StatusUpdate!
 }
 
 type StatusUpdate {
   message: String!
   task: String!
+  isGenerating: Boolean!
+}
+
+type ChartDeletedEvent {
+  id: ID!
 }
 
 type User {

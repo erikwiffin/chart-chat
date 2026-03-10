@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react";
 import embed, { type VisualizationSpec } from "vega-embed";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+import { API_BASE_URL } from "../../config";
 
 type Props = {
   title: string;

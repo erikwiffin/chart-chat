@@ -3,6 +3,7 @@
 from sqlalchemy.orm import Session
 
 from ..models import Chart, DataSource
+from ..pubsub import ProjectPubSub, pubsub
 from .context import ToolContext
 from .generate_project_name import generate_project_name
 from .graph import build_plan_execute_graph
@@ -20,9 +21,12 @@ async def get_ai_response(
         (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
     )
 
+    project_pubsub = ProjectPubSub(pubsub, project_id)
+
     ctx = ToolContext(
         db=db,
         project_id=project_id,
+        pubsub=project_pubsub,
         active_chart_id=active_chart_id,
         messages=messages,
         data_sources=data_sources,

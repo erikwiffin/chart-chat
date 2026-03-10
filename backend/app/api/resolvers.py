@@ -50,6 +50,11 @@ def resolve_project(_, info, id):
     return info.context["db"].query(Project).filter(Project.id == int(id)).first()
 
 
+@query.field("chart")
+def resolve_chart(_, info, id):
+    return info.context["db"].query(Chart).filter(Chart.id == int(id)).first()
+
+
 @query.field("chartRevisions")
 def resolve_chart_revisions(_, info, chartId):
     return (
@@ -114,6 +119,8 @@ async def resolve_send_message(_, info, projectId, content, activeChartId=None):
     db.commit()
     db.refresh(message)
 
+    await pubsub.publish(f"message_added:{project_id}", message)
+
     task = asyncio.create_task(generate_assistant_response(project_id, activeChartId))
     _active_tasks[project_id] = task
     task.add_done_callback(lambda _: _active_tasks.pop(project_id, None))
@@ -161,12 +168,16 @@ async def resolve_revert_chart(_, info, chartId, version):
 
 
 @mutation.field("deleteChart")
-def resolve_delete_chart(_, info, chartId):
+async def resolve_delete_chart(_, info, chartId):
     db = info.context["db"]
     chart = db.query(Chart).filter(Chart.id == int(chartId)).first()
     if not chart:
         raise ValueError(f"Chart {chartId} not found")
+    project_id = chart.project_id
     chart_service.delete_chart(db, chart)
+    await pubsub.publish(
+        f"chart_deleted:{project_id}", {"id": chartId, "project_id": project_id}
+    )
     return True
 
 
@@ -186,7 +197,7 @@ def resolve_delete_data_source(_, info, dataSourceId):
 
 @subscription.source("messageAdded")
 async def message_added_source(obj, info, projectId):
-    async for message in pubsub.subscribe(f"project:{projectId}"):
+    async for message in pubsub.subscribe(f"message_added:{projectId}"):
         yield message
 
 
@@ -208,7 +219,7 @@ def project_name_updated_resolver(project, info, projectId):
 
 @subscription.source("chartAdded")
 async def chart_added_source(obj, info, projectId):
-    async for chart in pubsub.subscribe(f"chart:{projectId}"):
+    async for chart in pubsub.subscribe(f"chart_added:{projectId}"):
         yield chart
 
 
@@ -226,6 +237,17 @@ async def chart_updated_source(obj, info, projectId):
 @subscription.field("chartUpdated")
 def chart_updated_resolver(chart, info, projectId):
     return chart
+
+
+@subscription.source("chartDeleted")
+async def chart_deleted_source(obj, info, projectId):
+    async for event in pubsub.subscribe(f"chart_deleted:{projectId}"):
+        yield event
+
+
+@subscription.field("chartDeleted")
+def chart_deleted_resolver(event, info, projectId):
+    return event
 
 
 @subscription.source("statusUpdate")

@@ -104,6 +104,7 @@ async def _create_chart(ctx: ToolContext, title: str, spec: dict) -> str:
     chart = await chart_service.create_chart(ctx.db, ctx.project_id, title, spec, ds_id)
     ctx.db.expunge(instance=chart)
     ctx.charts.append(chart)
+    await ctx.pubsub.publish("chart_added", chart)
     logger.info("Tool create_chart: created %r successfully", title)
     return f"Chart created. id={chart.id} title={chart.title}."
 
@@ -175,6 +176,7 @@ async def _edit_chart(ctx: ToolContext, chart_id: str, patch: list) -> str:
 
     await chart_service.update_chart(ctx.db, chart, new_spec)
     ctx.modified_chart_ids.add(chart.id)
+    await ctx.pubsub.publish("chart_updated", chart)
     return f"Chart '{chart_id}' updated successfully."
 
 
@@ -189,6 +191,7 @@ async def _revert_chart(ctx: ToolContext, chart_id: str, version: int) -> str:
     reverted = await chart_service.revert_chart(ctx.db, chart, version)
     ctx.db.expunge(instance=reverted)
     ctx.modified_chart_ids.add(reverted.id)
+    await ctx.pubsub.publish("chart_updated", reverted)
     return f"Chart {chart.id} reverted to version {version}."
 
 

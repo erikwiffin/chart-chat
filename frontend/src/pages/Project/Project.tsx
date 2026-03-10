@@ -2,14 +2,12 @@ import { useApolloClient, useQuery } from "@apollo/client/react";
 import { useCallback, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { GetProjectDocument } from "../../__generated__/graphql";
+import { API_BASE_URL } from "../../config";
 import { ProjectView } from "./ProjectView";
 
 const DEFAULT_LEFT_PERCENT = 33;
 const MIN_LEFT_PERCENT = 15;
 const MAX_LEFT_PERCENT = 80;
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 export function Project() {
   const { projectId } = useParams<{ projectId: string }>();

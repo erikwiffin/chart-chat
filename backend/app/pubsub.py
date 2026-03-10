@@ -23,3 +23,14 @@ class PubSub:
 
 
 pubsub = PubSub()
+
+
+class ProjectPubSub:
+    """Thin wrapper that binds a project_id so callers use event names directly."""
+
+    def __init__(self, pubsub: PubSub, project_id: int):
+        self._pubsub = pubsub
+        self._project_id = project_id
+
+    async def publish(self, event: str, message):
+        await self._pubsub.publish(f"{event}:{self._project_id}", message)
