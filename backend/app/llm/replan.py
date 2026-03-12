@@ -1,11 +1,12 @@
 """Replanner agent node — decides whether to continue or finish."""
 
+import json
 import logging
 from typing import Literal
 
 from langchain.agents import create_agent
 from langchain_core.exceptions import OutputParserException
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
+from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import ValidationError
 
@@ -32,38 +33,20 @@ def make_replan_step(llm, ctx: ToolContext):
             "Then decide: either summarize what was accomplished (task complete) or list remaining steps (more work needed)."
         ),
     )
+    example_response = json.dumps({"action": {"response": "Task complete"}})
+    example_plan = json.dumps({"action": {"steps": ["step1", "step2", "step3"]}})
     act_parser_prompt = ChatPromptTemplate.from_template(
-        "Based on the replanner's conversation below, output Act. "
+        "Based on the replanner's response below, output Act. "
         "If the replanner concluded the task is complete, use Response with their summary. "
         "If they indicated more steps are needed, use Plan with the list of remaining steps.\n\n"
-        "Conversation:\n{conversation}"
+        "Example Response:\n{example_response}\n\n"
+        "Example Plan:\n{example_plan}\n\n"
+        "Replanner response:\n{response}\n\n"
     )
     act_parser = (act_parser_prompt | llm.with_structured_output(Act)).with_retry(
         retry_if_exception_type=(ValidationError, OutputParserException),
         stop_after_attempt=3,
     )
-
-    def format_message_content(m: BaseMessage) -> str:
-        if isinstance(m, HumanMessage):
-            return str(m.content)
-        if isinstance(m, AIMessage):
-            return str(m.content)
-        if isinstance(m, ToolMessage):
-            if isinstance(m.content, str):
-                return m.content
-            if isinstance(m.content, list):
-                retval = ""
-                for content in m.content:
-                    if isinstance(content, str):
-                        retval += content + "\n"
-                    elif isinstance(content, dict):
-                        if content["type"] == "image":
-                            retval += "<image>\n"
-                        else:
-                            retval += content["text"] + "\n"
-                return retval
-            raise ValueError(f"Unknown tool message content type: {type(m.content)}")
-        raise ValueError(f"Unknown message type: {type(m)}")
 
     async def replan_step(state: PlanExecute):
         past_steps_str = "\n".join(
@@ -78,11 +61,14 @@ def make_replan_step(llm, ctx: ToolContext):
         response = await replanner_agent.ainvoke(
             {"messages": [HumanMessage(content=replanner_input)]}
         )
-        messages = response.get("messages", [])
-        conversation = "\n".join(
-            f"{m.type}: {format_message_content(m)}" for m in messages
+        last_msg = response["messages"][-1].content
+        output = act_parser.invoke(
+            {
+                "response": last_msg,
+                "example_response": example_response,
+                "example_plan": example_plan,
+            }
         )
-        output = act_parser.invoke({"conversation": conversation})
         assert isinstance(output, Act)
         if isinstance(output.action, Response):
             logger.info("Replan: complete — %.120s", output.action.response)
