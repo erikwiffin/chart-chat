@@ -19,19 +19,11 @@ logger = logging.getLogger(__name__)
 _DATA_SOURCE_URL_RE = re.compile(r"/api/data-sources/(\d+)/data")
 
 
-def _find_chart(ctx: ToolContext, chart_id: str):
+def _find_chart(ctx: ToolContext, chart_id: int):
     """Find a chart by ID (supports both DB IDs and 'new-N' synthetic IDs)."""
     for chart in ctx.charts:
-        if chart.id is not None and str(chart.id) == chart_id:
+        if chart.id is not None and chart.id == chart_id:
             return chart
-    if chart_id.startswith("new-"):
-        try:
-            idx = int(chart_id[4:])
-            new_charts = [c for c in ctx.charts if c.id is None]
-            if 0 <= idx < len(new_charts):
-                return new_charts[idx]
-        except (ValueError, IndexError):
-            pass
     return None
 
 
@@ -119,7 +111,7 @@ def _list_charts(ctx: ToolContext) -> str:
     return "\n".join(lines) if lines else "No charts available."
 
 
-def _get_chart_spec(ctx: ToolContext, chart_id: str) -> str:
+def _get_chart_spec(ctx: ToolContext, chart_id: int) -> str:
     logger.info("Tool get_chart_spec called: chart_id=%r", chart_id)
     chart = _find_chart(ctx, chart_id)
     if chart is None:
@@ -130,7 +122,7 @@ def _get_chart_spec(ctx: ToolContext, chart_id: str) -> str:
     return json.dumps(spec, indent=2)
 
 
-def _render_chart(ctx: ToolContext, chart_id: str) -> list:
+def _render_chart(ctx: ToolContext, chart_id: int) -> list:
     logger.info("Tool render_chart called: chart_id=%r", chart_id)
     chart = _find_chart(ctx, chart_id)
     if chart is None:
@@ -158,7 +150,7 @@ def _render_chart(ctx: ToolContext, chart_id: str) -> list:
     ]
 
 
-async def _edit_chart(ctx: ToolContext, chart_id: str, patch: list) -> str:
+async def _edit_chart(ctx: ToolContext, chart_id: int, patch: list) -> str:
     logger.info("Tool edit_chart called: chart_id=%r, patch=%s", chart_id, patch)
     chart = _find_chart(ctx, chart_id)
     if chart is None:
@@ -177,7 +169,7 @@ async def _edit_chart(ctx: ToolContext, chart_id: str, patch: list) -> str:
     return f"Chart '{chart_id}' updated successfully."
 
 
-async def _revert_chart(ctx: ToolContext, chart_id: str, version: int) -> str:
+async def _revert_chart(ctx: ToolContext, chart_id: int, version: int) -> str:
     logger.info("Tool revert_chart called: chart_id=%r, version=%d", chart_id, version)
     chart = _find_chart(ctx, chart_id)
     if chart is None:
@@ -232,17 +224,17 @@ def build_tools(ctx: ToolContext) -> dict:
         return _list_charts(ctx)
 
     @tool
-    def get_chart_spec(chart_id: str) -> str:
+    def get_chart_spec(chart_id: int) -> str:
         """Get the Vega-Lite spec of a chart by its ID."""
         return _get_chart_spec(ctx, chart_id)
 
     @tool
-    def render_chart(chart_id: str) -> list:
+    def render_chart(chart_id: int) -> list:
         """Render a chart as a PNG image and return it for visual inspection."""
         return _render_chart(ctx, chart_id)
 
     @tool
-    async def edit_chart(chart_id: str, patch: list) -> str:
+    async def edit_chart(chart_id: int, patch: list) -> str:
         """Edit a chart spec using a JSON Patch (RFC 6902) document.
         patch should be a list of operation dicts, e.g.
         [{"op": "replace", "path": "/mark", "value": "bar"}]
@@ -250,7 +242,7 @@ def build_tools(ctx: ToolContext) -> dict:
         return await _edit_chart(ctx, chart_id, patch)
 
     @tool
-    async def revert_chart(chart_id: str, version: int) -> str:
+    async def revert_chart(chart_id: int, version: int) -> str:
         """Revert a chart to a previous version. Use list_charts to find the chart ID,
         then specify the version number to revert to. This is useful when edits have
         gone wrong and you want to restore a known-good state rather than trying to

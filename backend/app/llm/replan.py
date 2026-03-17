@@ -4,6 +4,7 @@ import logging
 from typing import Literal
 
 from langchain.agents import create_agent
+from langchain.agents.structured_output import ToolStrategy
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -79,7 +80,8 @@ def make_replan_step(llm, ctx: ToolContext):
         output = act_parser.invoke(
             {
                 "response": last_msg,
-            }
+            },
+            response_format=ToolStrategy(Act),
         )
         assert isinstance(output, Act)
         if isinstance(output.action, Response):

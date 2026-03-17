@@ -18,23 +18,25 @@ class ToolContext:
     data_sources: list[DataSource]
     project_id: int
     pubsub: ProjectPubSub
-    active_chart_id: str | None = None
+    active_chart_id: int | None = None
     charts: list[Chart] = field(default_factory=list)
     modified_chart_ids: set[int] = field(default_factory=set)
 
 
 def ctx_to_markdown(ctx: ToolContext) -> str:
-    data_sources = "\n".join([f"- {ds.id} {ds.name}" for ds in ctx.data_sources])
+    data_sources = "\n".join(
+        [f"- ID: {ds.id}, Name: {ds.name}" for ds in ctx.data_sources]
+    )
     charts = "\n".join(
         [
-            f"- {c.id} {c.title}{', Active Chart' if c.id == ctx.active_chart_id else ''}"
+            f"- ID: {c.id}{' (Active Chart)' if c.id == ctx.active_chart_id else ''}, Title: {c.title}"
             for c in ctx.charts
         ]
     )
     return f"""
-Project: {ctx.project_id}
 Charts:
 {charts}
+
 Data sources:
 {data_sources}
 """

@@ -43,10 +43,11 @@ async def _run_plan(chart_id: int, directive: str):
         ctx = ToolContext(
             db=db,
             project_id=project_id,
-            active_chart_id=str(chart_id),
+            active_chart_id=chart_id,
             messages=messages,
             data_sources=data_sources,
             charts=existing_charts,
+            pubsub=ProjectPubSub(pubsub, project_id),
         )
         plan_step = make_plan_step(get_llm(), ctx)
         state = PlanExecute(
@@ -86,10 +87,11 @@ async def _run_execute(chart_id: int, step: str):
         ctx = ToolContext(
             db=db,
             project_id=project_id,
-            active_chart_id=str(chart_id),
+            active_chart_id=chart_id,
             messages=messages,
             data_sources=data_sources,
             charts=existing_charts,
+            pubsub=ProjectPubSub(pubsub, project_id),
         )
         execute_step = make_execute_step(get_llm(), ctx)
         state = PlanExecute(
@@ -123,7 +125,12 @@ async def _run_execute(chart_id: int, step: str):
     multiple=True,
     help='A completed step in the form "task::result". Repeatable.',
 )
-def replan(chart_id: int, objective: str, plan_steps: tuple[str, ...], past_steps_raw: tuple[str, ...]):
+def replan(
+    chart_id: int,
+    objective: str,
+    plan_steps: tuple[str, ...],
+    past_steps_raw: tuple[str, ...],
+):
     """Run the replan step for CHART_ID with objective, plan, and past step outputs."""
     past_steps: list[tuple[str, str]] = []
     for value in past_steps_raw:
@@ -162,7 +169,7 @@ async def _run_replan(
             db=db,
             project_id=project_id,
             pubsub=ProjectPubSub(pubsub, project_id),
-            active_chart_id=str(chart_id),
+            active_chart_id=chart_id,
             messages=messages,
             data_sources=data_sources,
             charts=existing_charts,

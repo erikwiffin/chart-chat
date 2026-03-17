@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import ValidationError
 
-from .context import Plan, PlanExecute, ToolContext
+from .context import Plan, PlanExecute, ToolContext, ctx_to_markdown
 from .tools import build_tools
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,17 @@ For example, if the user wants to change how data is aggregated, you may need to
 - Change the transform to use the correct aggregation function
 - Update the encoding to show the correct data
 - Confirm the changes are correct
+
+Don't include any vega-lite in your response.
+"""
+PLANNER_TEMPLATE = """
+{input}
+
+---
+
+{project}
+
+{chart_spec}
 """
 
 
@@ -50,16 +61,20 @@ def make_plan_step(llm, ctx: ToolContext):
     )
 
     async def plan_step(state: PlanExecute):
-        plan_input = state.input
+        chart_spec = ""
         if ctx.active_chart_id:
-            chart = next(
-                (c for c in ctx.charts if str(c.id) == ctx.active_chart_id), None
-            )
+            chart = next((c for c in ctx.charts if c.id == ctx.active_chart_id), None)
             if chart:
-                plan_input += f"\n\nSpec: {json.dumps(chart.spec, indent=2)}"
+                chart_spec = f"Chart spec: {json.dumps(chart.spec, indent=2)}"
             else:
                 logging.info(ctx.charts)
                 raise ValueError(f"Chart {ctx.active_chart_id} not found")
+
+        plan_input = PLANNER_TEMPLATE.format(
+            input=state.input,
+            project=ctx_to_markdown(ctx),
+            chart_spec=chart_spec,
+        )
         logger.info("Planning input: %.120s", state.input)
         response = await planner_agent.ainvoke(
             {

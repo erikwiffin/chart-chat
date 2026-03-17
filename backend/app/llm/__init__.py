@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from ..models import Chart, DataSource
 from ..pubsub import ProjectPubSub, pubsub
-from .context import ToolContext
+from .context import PlanExecute, ToolContext
 from .generate_project_name import generate_project_name
 from .graph import build_plan_execute_graph
 
@@ -15,7 +15,7 @@ async def get_ai_response(
     messages: list[dict],
     data_sources: list[DataSource],
     existing_charts: list[Chart],
-    active_chart_id: str | None = None,
+    active_chart_id: int | None = None,
 ) -> tuple[str, ToolContext]:
     user_input = next(
         (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
@@ -34,13 +34,14 @@ async def get_ai_response(
     )
 
     graph = build_plan_execute_graph(ctx)
+    state = PlanExecute(
+        input=user_input,
+        plan=[],
+        past_steps=[],
+        response="",
+    )
     result = await graph.ainvoke(
-        {
-            "input": user_input,
-            "plan": [],
-            "past_steps": [],
-            "response": "",
-        },
+        state,
         version="v2",
     )
     final_text = result.value.response or "Done."
