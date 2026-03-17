@@ -112,13 +112,10 @@ async def _create_chart(ctx: ToolContext, title: str, spec: dict) -> str:
 def _list_charts(ctx: ToolContext) -> str:
     logger.info("Tool list_charts called")
     lines = []
-    new_idx = 0
     for chart in ctx.charts:
-        if chart.id is not None:
-            lines.append(f"- ID: {chart.id}, Title: {chart.title}")
-        else:
-            lines.append(f"- ID: new-{new_idx} (new), Title: {chart.title}")
-            new_idx += 1
+        lines.append(
+            f"- ID: {chart.id}, Title: {chart.title} {', Active Chart' if chart.id == ctx.active_chart_id else ''}"
+        )
     return "\n".join(lines) if lines else "No charts available."
 
 

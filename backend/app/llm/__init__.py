@@ -40,9 +40,10 @@ async def get_ai_response(
             "plan": [],
             "past_steps": [],
             "response": "",
-        }
+        },
+        version="v2",
     )
-    final_text = result.get("response", "Done.")
+    final_text = result.value.response or "Done."
     return final_text, ctx
 
 

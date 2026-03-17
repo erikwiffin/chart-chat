@@ -1,6 +1,5 @@
 """Replanner agent node — decides whether to continue or finish."""
 
-import json
 import logging
 from typing import Literal
 
@@ -10,11 +9,31 @@ from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import ValidationError
 
-from .context import Act, PlanExecute, Response, ToolContext
-from .prompts import REPLANNER_TEMPLATE
+from .context import Act, PlanExecute, Response, ToolContext, ctx_to_markdown
 from .tools import build_tools
 
 logger = logging.getLogger(__name__)
+
+
+REPLANNER_TEMPLATE = """For the given objective, you have a plan and have completed some steps. 
+Decide if you need more steps or if the task is complete.
+
+Objective: {input}
+
+Project: {project}
+
+Original plan:
+{plan}
+
+Completed steps and results:
+{past_steps}
+
+Based on the results above:
+- Before responding that the task is complete, use render_chart to preview any created or edited chart and confirm it looks correct.
+- If the objective is complete (e.g., charts have been created and the user's question answered), \
+respond with a final Response message summarizing what was accomplished.
+- If more steps are needed, respond with an updated Plan containing only the remaining steps to complete.
+"""
 
 
 def make_replan_step(llm, ctx: ToolContext):
@@ -33,14 +52,10 @@ def make_replan_step(llm, ctx: ToolContext):
             "Then decide: either summarize what was accomplished (task complete) or list remaining steps (more work needed)."
         ),
     )
-    example_response = json.dumps({"action": {"response": "Task complete"}})
-    example_plan = json.dumps({"action": {"steps": ["step1", "step2", "step3"]}})
     act_parser_prompt = ChatPromptTemplate.from_template(
         "Based on the replanner's response below, output Act. "
         "If the replanner concluded the task is complete, use Response with their summary. "
         "If they indicated more steps are needed, use Plan with the list of remaining steps.\n\n"
-        "Example Response:\n{example_response}\n\n"
-        "Example Plan:\n{example_plan}\n\n"
         "Replanner response:\n{response}\n\n"
     )
     act_parser = (act_parser_prompt | llm.with_structured_output(Act)).with_retry(
@@ -49,14 +64,13 @@ def make_replan_step(llm, ctx: ToolContext):
     )
 
     async def replan_step(state: PlanExecute):
-        past_steps_str = "\n".join(
-            f"- {s}: {r}" for s, r in state.get("past_steps", [])
-        )
-        plan_str = "\n".join(f"{i+1}. {s}" for i, s in enumerate(state.get("plan", [])))
+        past_steps_str = "\n".join(f"- {s}: {r}" for s, r in state.past_steps)
+        plan_str = "\n".join(f"{i+1}. {s}" for i, s in enumerate(state.plan))
         replanner_input = REPLANNER_TEMPLATE.format(
-            input=state["input"],
+            input=state.input,
             plan=plan_str,
             past_steps=past_steps_str,
+            project=ctx_to_markdown(ctx),
         )
         response = await replanner_agent.ainvoke(
             {"messages": [HumanMessage(content=replanner_input)]}
@@ -65,8 +79,6 @@ def make_replan_step(llm, ctx: ToolContext):
         output = act_parser.invoke(
             {
                 "response": last_msg,
-                "example_response": example_response,
-                "example_plan": example_plan,
             }
         )
         assert isinstance(output, Act)
@@ -82,4 +94,4 @@ def make_replan_step(llm, ctx: ToolContext):
 
 
 def should_end(state: PlanExecute) -> Literal["agent", "__end__"]:
-    return "__end__" if state.get("response") else "agent"
+    return "__end__" if state.response else "agent"
