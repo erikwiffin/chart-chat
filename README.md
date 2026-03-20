@@ -2,11 +2,11 @@
 
 A chat application for AI-assisted chart generation. Upload your data, describe what you want to visualize, and iteratively refine Vega-Lite charts through conversation with an LLM.
 
-## Recording
+## Screenshots
 
-<video src="Chart%20Chat%20Recording.mp4" controls playsinline width="100%">
-  <a href="Chart%20Chat%20Recording.mp4">Download the recording</a> if playback is not supported.
-</video>
+Stacked area chart (“Emissions by Commodity”) refined in chat—e.g. filter pre-1900 data and remove background grids.
+
+![Chart Chat: chat sidebar with emissions trend requests and a stacked area chart in the main pane](Screenshot%202026-03-20%20at%203.53.33%E2%80%AFPM.png)
 
 
 ## Architecture
