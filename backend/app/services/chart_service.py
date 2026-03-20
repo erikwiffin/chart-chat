@@ -48,6 +48,7 @@ async def create_chart(
     )
     db.add(chart)
     db.commit()
+    db.refresh(chart)
     revision = ChartRevision(
         chart_id=chart.id, version=chart.version, spec=dict(chart.spec)
     )

@@ -31,6 +31,8 @@ For example, if the user wants to change how data is aggregated, you may need to
 - Update the encoding to show the correct data
 - Confirm the changes are correct
 
+If the user is complaining about a bug, your first step should be to render the chart and inspect it.
+
 Don't include any vega-lite in your response.
 """
 PLANNER_TEMPLATE = """

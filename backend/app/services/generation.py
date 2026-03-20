@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 async def generate_assistant_response(
-    project_id: int, active_chart_id: str | None = None
+    project_id: int, active_chart_id: int | None = None
 ):
     db = SessionLocal()
     try:
@@ -41,10 +41,6 @@ async def generate_assistant_response(
             existing_charts=existing_charts,
             active_chart_id=active_chart_id,
         )
-
-        # Expunge charts from the session (publishing now happens in tools)
-        for chart in ctx.charts:
-            db.expunge(instance=chart)
 
         # Save assistant message
         assistant_msg = Message(

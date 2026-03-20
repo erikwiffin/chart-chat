@@ -65,6 +65,14 @@ def make_replan_step(llm, ctx: ToolContext):
     )
 
     async def replan_step(state: PlanExecute):
+        logger.info("Replanning step")
+        logger.info("Plan:")
+        for step in state.plan:
+            logger.info("- %s", step)
+        logger.info("Past steps:")
+        for step in state.past_steps:
+            logger.info("- %s: %s", step[0], step[1])
+
         past_steps_str = "\n".join(f"- {s}: {r}" for s, r in state.past_steps)
         plan_str = "\n".join(f"{i+1}. {s}" for i, s in enumerate(state.plan))
         replanner_input = REPLANNER_TEMPLATE.format(

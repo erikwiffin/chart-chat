@@ -18,7 +18,6 @@ type Documents = {
     "subscription ChartDeleted($projectId: ID!) {\n  chartDeleted(projectId: $projectId) {\n    id\n  }\n}": typeof types.ChartDeletedDocument,
     "subscription ChartUpdated($projectId: ID!) {\n  chartUpdated(projectId: $projectId) {\n    id\n    title\n    spec\n    version\n    createdAt\n    thumbnailUrl\n  }\n}": typeof types.ChartUpdatedDocument,
     "mutation CreateProject($name: String!) {\n  createProject(name: $name) {\n    id\n    name\n  }\n}": typeof types.CreateProjectDocument,
-    "mutation CreateProjectFromPrompt($content: String!) {\n  createProjectFromPrompt(content: $content) {\n    id\n    name\n  }\n}": typeof types.CreateProjectFromPromptDocument,
     "mutation DeleteChart($chartId: ID!) {\n  deleteChart(chartId: $chartId)\n}": typeof types.DeleteChartDocument,
     "mutation DeleteDataSource($dataSourceId: ID!) {\n  deleteDataSource(dataSourceId: $dataSourceId)\n}": typeof types.DeleteDataSourceDocument,
     "query GetChart($id: ID!) {\n  chart(id: $id) {\n    id\n    title\n    spec\n    version\n    createdAt\n    thumbnailUrl\n  }\n}": typeof types.GetChartDocument,
@@ -41,7 +40,6 @@ const documents: Documents = {
     "subscription ChartDeleted($projectId: ID!) {\n  chartDeleted(projectId: $projectId) {\n    id\n  }\n}": types.ChartDeletedDocument,
     "subscription ChartUpdated($projectId: ID!) {\n  chartUpdated(projectId: $projectId) {\n    id\n    title\n    spec\n    version\n    createdAt\n    thumbnailUrl\n  }\n}": types.ChartUpdatedDocument,
     "mutation CreateProject($name: String!) {\n  createProject(name: $name) {\n    id\n    name\n  }\n}": types.CreateProjectDocument,
-    "mutation CreateProjectFromPrompt($content: String!) {\n  createProjectFromPrompt(content: $content) {\n    id\n    name\n  }\n}": types.CreateProjectFromPromptDocument,
     "mutation DeleteChart($chartId: ID!) {\n  deleteChart(chartId: $chartId)\n}": types.DeleteChartDocument,
     "mutation DeleteDataSource($dataSourceId: ID!) {\n  deleteDataSource(dataSourceId: $dataSourceId)\n}": types.DeleteDataSourceDocument,
     "query GetChart($id: ID!) {\n  chart(id: $id) {\n    id\n    title\n    spec\n    version\n    createdAt\n    thumbnailUrl\n  }\n}": types.GetChartDocument,
@@ -90,10 +88,6 @@ export function graphql(source: "subscription ChartUpdated($projectId: ID!) {\n 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "mutation CreateProject($name: String!) {\n  createProject(name: $name) {\n    id\n    name\n  }\n}"): (typeof documents)["mutation CreateProject($name: String!) {\n  createProject(name: $name) {\n    id\n    name\n  }\n}"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "mutation CreateProjectFromPrompt($content: String!) {\n  createProjectFromPrompt(content: $content) {\n    id\n    name\n  }\n}"): (typeof documents)["mutation CreateProjectFromPrompt($content: String!) {\n  createProjectFromPrompt(content: $content) {\n    id\n    name\n  }\n}"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

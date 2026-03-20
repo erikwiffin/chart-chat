@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO)
 Base.metadata.create_all(bind=engine)
 
 type_defs = load_schema_from_path(
-    os.path.join(os.path.dirname(__file__), "schema.graphql")
+    os.path.join(os.path.dirname(__file__), "api/schema.graphql")
 )
 
 schema = make_executable_schema(

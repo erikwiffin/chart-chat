@@ -1,7 +1,7 @@
 import uuid as _uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import JSON, ForeignKey, Integer, String, Text, desc
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -33,10 +33,12 @@ class Project(Base):
         back_populates="project", order_by="Message.created_at"
     )
     data_sources: Mapped[list["DataSource"]] = relationship(
-        back_populates="project", order_by="DataSource.created_at"
+        back_populates="project",
+        order_by=lambda: desc(DataSource.created_at),
     )
     charts: Mapped[list["Chart"]] = relationship(
-        back_populates="project", order_by="Chart.created_at"
+        back_populates="project",
+        order_by=lambda: desc(Chart.created_at),
     )
 
 
@@ -88,14 +90,15 @@ class Chart(Base):
         cascade="all, delete-orphan",
     )
 
+    def __repr__(self) -> str:
+        return f"Chart(id={self.id}, title={self.title}, version={self.version})"
+
 
 class ChartRevision(Base):
     __tablename__ = "chart_revisions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    chart_id: Mapped[int] = mapped_column(
-        ForeignKey("charts.id", ondelete="CASCADE")
-    )
+    chart_id: Mapped[int] = mapped_column(ForeignKey("charts.id", ondelete="CASCADE"))
     version: Mapped[int] = mapped_column(Integer)
     spec: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)

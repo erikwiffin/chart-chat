@@ -49,8 +49,8 @@ def render_spec_to_svg(spec: dict, file_path: str | None = None) -> str:
     if file_path:
         spec = inject_inline_data(spec, file_path)
 
-    spec["width"] = 400
-    spec["height"] = 300
+    spec["width"] = 800
+    spec["height"] = 600
     return vlc.vegalite_to_svg(json.dumps(spec))
 
 

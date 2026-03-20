@@ -79,26 +79,30 @@ def _describe_data(ctx: ToolContext, source_name: str) -> str:
     return f"Data source '{source_name}' not found."
 
 
-async def _create_chart(ctx: ToolContext, title: str, spec: dict) -> str:
+async def _create_chart(
+    ctx: ToolContext, title: str, data_source_id: int, mark: str
+) -> str:
     logger.info("Tool create_chart called: title=%r", title)
-    spec = dict(spec)
-    ds_id = None
-    data = spec.pop("data", None)
-    if data and isinstance(data, dict) and "url" in data:
-        m = _DATA_SOURCE_URL_RE.search(data["url"])
-        if m:
-            ds_id = int(m.group(1))
+    spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+        "height": "container",
+        "width": "container",
+        "data": {"url": f"/api/data-sources/{data_source_id}/data"},
+        "mark": mark,
+        "encoding": {},
+    }
     error = validate_vega_lite_spec(spec | {"data": {"values": []}})
     if error:
         logger.info("Tool create_chart: invalid spec for %r: %s", title, error)
         return f"Invalid Vega-Lite spec: {error}"
 
-    chart = await chart_service.create_chart(ctx.db, ctx.project_id, title, spec, ds_id)
-    ctx.db.expunge(instance=chart)
+    chart = await chart_service.create_chart(
+        ctx.db, ctx.project_id, title, spec, data_source_id
+    )
     ctx.charts.append(chart)
     await ctx.pubsub.publish("chart_added", chart)
     logger.info("Tool create_chart: created %r successfully", title)
-    return f"Chart created. id={chart.id} title={chart.title}."
+    return f"Chart created. {chart}."
 
 
 def _list_charts(ctx: ToolContext) -> str:
@@ -177,8 +181,11 @@ async def _revert_chart(ctx: ToolContext, chart_id: int, version: int) -> str:
     if chart.id is None or ctx.db is None:
         return "Chart revert is not available."
 
+    versions = [r.version for r in chart.revisions]
+    if version not in versions:
+        return f"Version {version} not found for chart {chart_id}. Available versions: {versions}."
+
     reverted = await chart_service.revert_chart(ctx.db, chart, version)
-    ctx.db.expunge(instance=reverted)
     ctx.modified_chart_ids.add(reverted.id)
     await ctx.pubsub.publish("chart_updated", reverted)
     return f"Chart {chart.id} reverted to version {version}."
@@ -195,7 +202,18 @@ def build_tools(ctx: ToolContext) -> dict:
 
     @tool
     def search_vega_lite_docs(query: str) -> str:
-        """Search Vega-Lite documentation. Returns the markdown of the top matching doc."""
+        """Search Vega-Lite documentation. Returns the markdown of the top matching doc.
+
+        query: The search query. Use specfic terms like "encoding", "mark", "transform", etc.
+        Example: "encoding: color"
+        Example: "mark: bar"
+        Example: "transform: aggregate"
+        Example: "transform: fold"
+        Example: "transform: calculate"
+        Example: "transform: filter"
+        Example: "transform: bin"
+        Example: "transform: density"
+        """
         return _search_vega_lite_docs(query)
 
     @tool
@@ -214,9 +232,14 @@ def build_tools(ctx: ToolContext) -> dict:
         return _describe_data(ctx, source_name)
 
     @tool
-    async def create_chart(title: str, spec: dict) -> str:
-        """Create a Vega-Lite chart. Call this when ready to produce a visualization."""
-        return await _create_chart(ctx, title, spec)
+    async def create_chart(title: str, data_source_id: int, mark: str) -> str:
+        """Create a Vega-Lite chart. Call this when ready to produce a visualization.
+
+        title: The title of the chart.
+        data_source_id: The ID of the data source to use for the chart.
+        mark: A Vega-Lite mark type (e.g. "bar", "line", "point", "area").
+        """
+        return await _create_chart(ctx, title, data_source_id, mark)
 
     @tool
     def list_charts() -> str:

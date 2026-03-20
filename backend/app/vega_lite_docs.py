@@ -20,7 +20,7 @@ def _parse_title(content: str) -> str:
             fm = content[3:end]
             m = _FRONTMATTER_TITLE_RE.search(fm)
             if m:
-                return m.group(1).strip().strip('"\'')
+                return m.group(1).strip().strip("\"'")
     return ""
 
 
@@ -29,26 +29,20 @@ def _ensure_db() -> None:
     if not DOCS_DIR.exists():
         return
     db_exists = DB_PATH.exists()
-    db_mtime = DB_PATH.stat().st_mtime if db_exists else 0
-    newest_md = 0
-    for p in DOCS_DIR.glob("*.md"):
-        newest_md = max(newest_md, p.stat().st_mtime)
-    if db_exists and newest_md <= db_mtime:
+    if db_exists:
         return
     # Build or rebuild
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     try:
         conn.execute("DROP TABLE IF EXISTS docs_fts")
-        conn.execute(
-            "CREATE VIRTUAL TABLE docs_fts USING fts5(path, title, content)"
-        )
-        for path in sorted(DOCS_DIR.glob("*.md")):
+        conn.execute("CREATE VIRTUAL TABLE docs_fts USING fts5(title, content)")
+        for path in sorted(DOCS_DIR.glob("**/*.md")):
             content = path.read_text(encoding="utf-8", errors="replace")
             title = _parse_title(content) or path.stem
             conn.execute(
-                "INSERT INTO docs_fts(path, title, content) VALUES (?, ?, ?)",
-                (path.name, title, content),
+                "INSERT INTO docs_fts(title, content) VALUES (?, ?)",
+                (title, content),
             )
         conn.commit()
     finally:
@@ -67,9 +61,10 @@ def search_vega_lite_docs(query: str) -> str:
     conn = sqlite3.connect(DB_PATH)
     try:
         # FTS5 MATCH and ORDER BY rank; use placeholder to avoid injection
+        tokens = re.sub(r"[^a-zA-Z0-9]", " ", query.strip())
         cur = conn.execute(
             "SELECT content FROM docs_fts WHERE docs_fts MATCH ? ORDER BY rank LIMIT 1",
-            (query.strip(),),
+            (tokens,),
         )
         row = cur.fetchone()
         if row:

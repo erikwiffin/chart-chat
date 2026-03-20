@@ -18,12 +18,18 @@ export function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const client = useApolloClient();
 
-  const { data: projectsData } = useQuery(GetProjectsDocument, { fetchPolicy: "cache-and-network" });
-  const [createProject, { loading: isCreating }] = useMutation(CreateProjectDocument);
+  const { data: projectsData } = useQuery(GetProjectsDocument, {
+    fetchPolicy: "cache-and-network",
+  });
+  const [createProject, { loading: isCreating }] = useMutation(
+    CreateProjectDocument,
+  );
   const [sendMessage] = useMutation(SendMessageDocument);
 
   const projects = projectsData?.projects ?? [];
-  const canSubmit = Boolean(input.trim() && file && !isCreating && !isUploading);
+  const canSubmit = Boolean(
+    input.trim() && file && !isCreating && !isUploading,
+  );
 
   const handleSubmit = async () => {
     if (!input.trim() || !file || isCreating || isUploading) return;
@@ -38,6 +44,8 @@ export function Home() {
     const project = createResult.data?.createProject;
     if (!project) return;
 
+    navigate(`/project/${project.id}`);
+
     // 2. Upload file so the data source exists before the LLM runs
     const formData = new FormData();
     formData.append("file", file);
@@ -46,7 +54,7 @@ export function Home() {
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/projects/${project.id}/upload`,
-        { method: "POST", body: formData }
+        { method: "POST", body: formData },
       );
 
       if (!response.ok) {
@@ -58,9 +66,8 @@ export function Home() {
       // 3. Send the prompt as the first message (LLM now sees the data source)
       await sendMessage({
         variables: { projectId: project.id, content },
+        refetchQueries: ["GetProjectMessages"],
       });
-
-      navigate(`/project/${project.id}`);
     } catch {
       setUploadError("Upload failed. Please try again.");
     } finally {
@@ -81,7 +88,7 @@ export function Home() {
       canSubmit={canSubmit}
       onSubmit={handleSubmit}
       projects={projects}
-      onProjectSelect={(id, _name) => navigate(`/project/${id}`)}
+      onProjectSelect={(id) => navigate(`/project/${id}`)}
       isCreating={isCreating}
       isUploading={isUploading}
       uploadError={uploadError}

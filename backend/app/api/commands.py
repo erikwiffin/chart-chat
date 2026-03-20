@@ -4,6 +4,7 @@ import click
 
 from app.charts import generate_chart_thumbnail
 from app.database import SessionLocal
+from app.vega_lite_docs import search_vega_lite_docs
 from app.llm.common import get_llm
 from app.llm.context import PlanExecute, ToolContext
 from app.llm.execute import make_execute_step
@@ -29,11 +30,11 @@ def plan(chart_id: int, directive: str):
     asyncio.run(_run_plan(chart_id, directive))
 
 
-async def _run_plan(chart_id: int, directive: str):
+async def _run_plan(project_id: int, directive: str):
     db = SessionLocal()
     try:
-        chart = db.query(Chart).filter(Chart.id == chart_id).one()
-        project_id = chart.project_id
+        # chart = db.query(Chart).filter(Chart.id == chart_id).one()
+        # project_id = chart.project_id
         project = db.query(Project).filter(Project.id == project_id).one()
         messages = [{"role": m.role, "content": m.content} for m in project.messages]
         data_sources = (
@@ -43,7 +44,7 @@ async def _run_plan(chart_id: int, directive: str):
         ctx = ToolContext(
             db=db,
             project_id=project_id,
-            active_chart_id=chart_id,
+            active_chart_id=None,
             messages=messages,
             data_sources=data_sources,
             charts=existing_charts,
@@ -192,6 +193,14 @@ async def _run_replan(
             click.echo(f"  {i}. {step}")
     finally:
         db.close()
+
+
+@cli.command("search-docs")
+@click.argument("query")
+def search_docs(query: str):
+    """Search the Vega-Lite documentation for QUERY."""
+    result = search_vega_lite_docs(query)
+    click.echo(result)
 
 
 @cli.command("render-thumbnail")

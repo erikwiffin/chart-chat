@@ -1,6 +1,0 @@
-mutation CreateProjectFromPrompt($content: String!) {
-  createProjectFromPrompt(content: $content) {
-    id
-    name
-  }
-}

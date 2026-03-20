@@ -38,10 +38,10 @@ The backend serves a GraphQL playground at `http://localhost:8000/graphql/`.
 ### Backend Structure
 
 - `backend/app/config.py` — Centralized settings via pydantic-settings
-- `backend/app/schema.graphql` — GraphQL type definitions (SDL)
 - `backend/app/models.py` — SQLAlchemy ORM models (User, Project, Message, DataSource, Chart, ChartRevision)
 - `backend/app/database.py` — SQLAlchemy engine, session factory, declarative base
 - `backend/app/app.py` — FastAPI app wiring (CORS, GraphQL endpoint, router)
+- `backend/app/api/schema.graphql` — GraphQL type definitions (SDL)
 - `backend/app/api/resolvers.py` — Thin GraphQL query/mutation/subscription resolvers
 - `backend/app/api/routes.py` — REST endpoints (data sources, uploads, thumbnails) using APIRouter + Depends
 - `backend/app/services/chart_service.py` — Chart lifecycle: create, update, revert, delete (version/revision/thumbnail)

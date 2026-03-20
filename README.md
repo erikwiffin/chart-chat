@@ -2,9 +2,12 @@
 
 A chat application for AI-assisted chart generation. Upload your data, describe what you want to visualize, and iteratively refine Vega-Lite charts through conversation with an LLM.
 
-## Screenshots
+## Recording
 
-_Screenshots coming soon — drop images here once the app is running._
+<video src="Chart%20Chat%20Recording.mp4" controls playsinline width="100%">
+  <a href="Chart%20Chat%20Recording.mp4">Download the recording</a> if playback is not supported.
+</video>
+
 
 ## Architecture
 

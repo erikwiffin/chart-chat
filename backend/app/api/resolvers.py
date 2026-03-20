@@ -42,7 +42,7 @@ def resolve_users(_, info):
 
 @query.field("projects")
 def resolve_projects(_, info):
-    return info.context["db"].query(Project).all()
+    return info.context["db"].query(Project).order_by(Project.created_at.desc()).all()
 
 
 @query.field("project")
@@ -89,31 +89,11 @@ def resolve_create_project(_, info, name):
     return project
 
 
-@mutation.field("createProjectFromPrompt")
-async def resolve_create_project_from_prompt(_, info, content):
-    db = info.context["db"]
-    project = Project(name="")
-    db.add(project)
-    db.commit()
-    db.refresh(project)
-
-    message = Message(project_id=project.id, content=content, role="user")
-    db.add(message)
-    db.commit()
-    db.refresh(message)
-
-    task = asyncio.create_task(generate_assistant_response(project.id))
-    _active_tasks[project.id] = task
-    task.add_done_callback(lambda _: _active_tasks.pop(project.id, None))
-    asyncio.create_task(generate_and_update_project_name(project.id, content))
-
-    return project
-
-
 @mutation.field("sendMessage")
 async def resolve_send_message(_, info, projectId, content, activeChartId=None):
     db = info.context["db"]
     project_id = int(projectId)
+    active_chart_id = int(activeChartId) if activeChartId else None
     message = Message(project_id=project_id, content=content, role="user")
     db.add(message)
     db.commit()
@@ -121,7 +101,7 @@ async def resolve_send_message(_, info, projectId, content, activeChartId=None):
 
     await pubsub.publish(f"message_added:{project_id}", message)
 
-    task = asyncio.create_task(generate_assistant_response(project_id, activeChartId))
+    task = asyncio.create_task(generate_assistant_response(project_id, active_chart_id))
     _active_tasks[project_id] = task
     task.add_done_callback(lambda _: _active_tasks.pop(project_id, None))
 
