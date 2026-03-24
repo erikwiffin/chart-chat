@@ -13,6 +13,7 @@ from .api.resolvers import (
     data_source_type,
     message_type,
     mutation,
+    project_spend_type,
     project_type,
     query,
     subscription,
@@ -39,6 +40,7 @@ schema = make_executable_schema(
     data_source_type,
     chart_type,
     chart_revision_type,
+    project_spend_type,
 )
 
 app = FastAPI()

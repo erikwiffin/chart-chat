@@ -10,6 +10,7 @@ import {
 import { ChartDetailTab } from "../ChartDetailTab/ChartDetailTab";
 import { DataSourceDetailTab } from "../DataSourceDetailTab/DataSourceDetailTab";
 import { OverviewPanel } from "../OverviewPanel/OverviewPanel";
+import { SpendPanel } from "../SpendPanel/SpendPanel";
 import type { AppTab, ChartTab, DataSourceTab } from "./tabs";
 import { truncateLabel } from "./tabs";
 import { MainPanelView } from "./MainPanelView";
@@ -33,6 +34,7 @@ type Notification = { id: number; message: string };
 export function MainPanel({ projectId, onActiveChartChange }: Props) {
   const chartRouteMatch = useMatch("/project/:projectId/chart/:chartId");
   const dataRouteMatch = useMatch("/project/:projectId/data/:dataSourceId");
+  const spendRouteMatch = useMatch("/project/:projectId/spend");
   const urlChartId = chartRouteMatch?.params.chartId;
   const urlDataSourceId = dataRouteMatch?.params.dataSourceId;
   const navigate = useNavigate();
@@ -41,10 +43,13 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
     ? `chart-${urlChartId}`
     : urlDataSourceId
       ? `ds-${urlDataSourceId}`
-      : "overview";
+      : spendRouteMatch
+        ? "spend"
+        : "overview";
 
   const [tabs, setTabs] = useState<AppTab[]>([
     { id: "overview", label: "Overview", closeable: false },
+    { id: "spend", label: "Spend", closeable: false },
   ]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const nextNotificationId = useRef(0);
@@ -71,7 +76,7 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
   // Save open tabs to localStorage (after initialization)
   useEffect(() => {
     if (!hasInitialized.current) return;
-    const ids = tabs.filter((t) => t.id !== "overview").map((t) => t.id);
+    const ids = tabs.filter((t) => t.closeable).map((t) => t.id);
     localStorage.setItem(storageKey, JSON.stringify(ids));
   }, [tabs, storageKey]);
 
@@ -93,6 +98,7 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
 
     const restoredTabs: AppTab[] = [
       { id: "overview", label: "Overview", closeable: false },
+      { id: "spend", label: "Spend", closeable: false },
     ];
 
     for (const tabId of idsToOpen) {
@@ -145,6 +151,8 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
     (tabId: string) => {
       if (tabId === "overview") {
         navigate(`/project/${projectId}`);
+      } else if (tabId === "spend") {
+        navigate(`/project/${projectId}/spend`);
       } else if (tabId.startsWith("chart-")) {
         navigate(`/project/${projectId}/chart/${tabId.replace("chart-", "")}`);
       } else if (tabId.startsWith("ds-")) {
@@ -247,7 +255,7 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
   );
 
   const reorderTabs = useCallback((fromIndex: number, toIndex: number) => {
-    if (fromIndex === 0 || toIndex === 0) return;
+    if (fromIndex <= 1 || toIndex <= 1) return;
     setTabs((prev) => {
       const next = [...prev];
       const [moved] = next.splice(fromIndex, 1);
@@ -266,6 +274,9 @@ export function MainPanel({ projectId, onActiveChartChange }: Props) {
             onOpenDataSource={openDataSourceTab}
           />
         );
+      }
+      if (tab.id === "spend") {
+        return <SpendPanel projectId={projectId} />;
       }
       if ("kind" in tab && tab.kind === "chart") {
         const chartId = tab.id.replace("chart-", "");

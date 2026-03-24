@@ -9,6 +9,7 @@ function App() {
       <Route path="/project/:projectId" element={<Project />}>
         <Route path="chart/:chartId" element={<></>} />
         <Route path="data/:dataSourceId" element={<></>} />
+        <Route path="spend" element={<></>} />
       </Route>
     </Routes>
   );

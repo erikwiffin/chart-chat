@@ -37,9 +37,9 @@ export function MainPanelView({
             role="tab"
             className={`tab group ${activeTabId === tab.id ? "tab-active" : ""} ${dragIndex === index ? "opacity-40" : ""} ${hoverIndex === index && dragIndex !== index ? "border-l-[3px] border-primary" : ""}`}
             onClick={() => onTabChange(tab.id)}
-            draggable={tab.id !== "overview"}
+            draggable={tab.closeable}
             onDragStart={
-              tab.id !== "overview"
+              tab.closeable
                 ? (e) => {
                     e.stopPropagation();
                     dragIndexRef.current = index;

@@ -21,7 +21,13 @@ export type DataSourceTab = {
   closeable: true;
 };
 
-export type AppTab = OverviewTab | ChartTab | DataSourceTab;
+export type SpendTab = {
+  id: "spend";
+  label: string;
+  closeable: false;
+};
+
+export type AppTab = OverviewTab | SpendTab | ChartTab | DataSourceTab;
 
 export function truncateLabel(s: string): string {
   return s.length > 20 ? s.slice(0, 20) + "…" : s;

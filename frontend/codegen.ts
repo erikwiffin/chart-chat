@@ -5,8 +5,7 @@ const mode = process.env.MODE ?? process.env.NODE_ENV ?? "development";
 const env = loadEnv(mode, process.cwd());
 
 const config: CodegenConfig = {
-  schema: env.VITE_GRAPHQL_HTTP_URL || "../backend/app/schema.graphql",
-  // Falls back to local schema file when backend isn't running
+  schema: env.VITE_GRAPHQL_HTTP_URL,
   documents: ["src/**/*.graphql"],
   generates: {
     "src/__generated__/": {

@@ -2,8 +2,11 @@ import asyncio
 import json
 import logging
 
+import httpx
 from ariadne import MutationType, ObjectType, QueryType, SubscriptionType
+from graphql import GraphQLError
 
+from ..config import settings
 from ..models import Chart, ChartRevision, DataSource, Message, Project, User
 from ..pubsub import pubsub
 from ..services import chart_service
@@ -23,6 +26,7 @@ message_type = ObjectType("Message")
 data_source_type = ObjectType("DataSource")
 chart_type = ObjectType("Chart")
 chart_revision_type = ObjectType("ChartRevision")
+project_spend_type = ObjectType("ProjectSpend")
 
 _active_tasks: dict[int, asyncio.Task] = {}
 
@@ -64,6 +68,55 @@ def resolve_chart_revisions(_, info, chartId):
         .order_by(ChartRevision.version.desc())
         .all()
     )
+
+
+@query.field("projectSpend")
+async def resolve_project_spend(_, info, projectId):
+    db = info.context["db"]
+    project = db.query(Project).filter(Project.id == int(projectId)).first()
+    if not project:
+        raise GraphQLError(f"Project {projectId} not found")
+
+    headers = {"Authorization": f"Bearer {settings.litellm_api_key}"}
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{settings.litellm_base_url}/tag/summary",
+            params={
+                "start_date": "1970-01-01",
+                "end_date": "2034-01-01",
+                "tag_filter": f"project:{projectId}",
+            },
+            headers=headers,
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+    results = data.get("results", [])
+    if not results:
+        return {"total_cost": 0.0, "total_requests": 0, "total_tokens": 0}
+
+    entry = results[0]
+    return {
+        "total_cost": float(entry.get("total_spend", 0) or 0),
+        "total_requests": int(entry.get("total_requests", 0) or 0),
+        "total_tokens": int(entry.get("total_tokens", 0) or 0),
+    }
+
+
+@project_spend_type.field("totalCost")
+def resolve_project_spend_total_cost(obj, *_):
+    return obj["total_cost"]
+
+
+@project_spend_type.field("totalRequests")
+def resolve_project_spend_total_requests(obj, *_):
+    return obj["total_requests"]
+
+
+@project_spend_type.field("totalTokens")
+def resolve_project_spend_total_tokens(obj, *_):
+    return obj["total_tokens"]
 
 
 # --- Mutations ---

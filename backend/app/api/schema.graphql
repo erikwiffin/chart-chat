@@ -5,6 +5,13 @@ type Query {
   project(id: ID!): Project
   chart(id: ID!): Chart
   chartRevisions(chartId: ID!): [ChartRevision!]!
+  projectSpend(projectId: ID!): ProjectSpend!
+}
+
+type ProjectSpend {
+  totalCost: Float!
+  totalRequests: Int!
+  totalTokens: Int!
 }
 
 type Mutation {

@@ -1,0 +1,7 @@
+query GetProjectSpend($projectId: ID!) {
+  projectSpend(projectId: $projectId) {
+    totalCost
+    totalRequests
+    totalTokens
+  }
+}
