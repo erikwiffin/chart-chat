@@ -4,24 +4,31 @@ import re
 import sqlite3
 from pathlib import Path
 
+import yaml
+
 from .config import settings
 
 DOCS_DIR = Path(settings.vega_lite_docs_dir)
 DB_PATH = DOCS_DIR / "docs.db"
 
-_FRONTMATTER_TITLE_RE = re.compile(r"^\s*title:\s*(.+)$", re.MULTILINE)
 
+def _parse_frontmatter(content: str) -> tuple[str, str]:
+    """Extract title and body from YAML frontmatter if present.
 
-def _parse_title(content: str) -> str:
-    """Extract title from YAML frontmatter if present."""
+    Returns (title, body) where body has frontmatter stripped.
+    """
     if content.startswith("---"):
         end = content.find("---", 3)
         if end != -1:
-            fm = content[3:end]
-            m = _FRONTMATTER_TITLE_RE.search(fm)
-            if m:
-                return m.group(1).strip().strip("\"'")
-    return ""
+            fm_text = content[3:end]
+            body = content[end + 3:].lstrip("\n")
+            try:
+                parsed = yaml.safe_load(fm_text)
+            except yaml.YAMLError:
+                return ("", content)
+            if isinstance(parsed, dict):
+                return (str(parsed.get("title", "")), body)
+    return ("", content)
 
 
 def _ensure_db() -> None:
@@ -38,8 +45,9 @@ def _ensure_db() -> None:
         conn.execute("DROP TABLE IF EXISTS docs_fts")
         conn.execute("CREATE VIRTUAL TABLE docs_fts USING fts5(title, content)")
         for path in sorted(DOCS_DIR.glob("**/*.md")):
-            content = path.read_text(encoding="utf-8", errors="replace")
-            title = _parse_title(content) or path.stem
+            raw = path.read_text(encoding="utf-8", errors="replace")
+            title, content = _parse_frontmatter(raw)
+            title = title or path.stem
             conn.execute(
                 "INSERT INTO docs_fts(title, content) VALUES (?, ?)",
                 (title, content),

@@ -16,18 +16,31 @@ from .tools import build_tools
 logger = logging.getLogger(__name__)
 
 
-REPLANNER_TEMPLATE = """For the given objective, you have a plan and have completed some steps. 
-Decide if you need more steps or if the task is complete.
+REPLANNER_SYSTEM_PROMPT = """
+You are a data visualization expert using Vega-Lite.
 
-Objective: {input}
+You will be provided with a task, a report on the work done so far, and the remaining plan.
+Your job is to review the project so far and determine if the task has been accomplished.
+
+If the task is complete, summarize the work that has been done.
+If more work is required, list the remaining steps or make a new plan if the old plan is no longer valid.
+
+Use the render_chart tool to visually confirm that the chart is correctly rendering and the task is complete.
+Don't include any vega-lite in your response.
+"""
+
+REPLANNER_TEMPLATE = """
+Task: {input}
 
 Project: {project}
 
-Original plan:
+Progress:
+{progress}
+
+Plan:
 {plan}
 
-Completed steps and results:
-{past_steps}
+---
 
 Based on the results above:
 - Before responding that the task is complete, use render_chart to preview any created or edited chart and confirm it looks correct.
@@ -47,11 +60,7 @@ def make_replan_step(llm, ctx: ToolContext):
     replanner_agent = create_agent(
         llm,
         replanner_tools,
-        system_prompt=(
-            "You are the replanner. You have access to render_chart to preview charts. "
-            "Use it to preview any created or edited chart before concluding the task is complete. "
-            "Then decide: either summarize what was accomplished (task complete) or list remaining steps (more work needed)."
-        ),
+        system_prompt=REPLANNER_SYSTEM_PROMPT,
     )
     act_parser_prompt = ChatPromptTemplate.from_template(
         "Based on the replanner's response below, output Act. "
@@ -73,13 +82,16 @@ def make_replan_step(llm, ctx: ToolContext):
         for step in state.past_steps:
             logger.info("- %s: %s", step[0], step[1])
 
-        past_steps_str = "\n".join(f"- {s}: {r}" for s, r in state.past_steps)
-        plan_str = "\n".join(f"{i+1}. {s}" for i, s in enumerate(state.plan))
+        progress_str = "\n\n".join(
+            f"{i+1}. {plan}\n{result}"
+            for i, (plan, result) in enumerate(state.past_steps)
+        )
+        plan_str = "\n".join(f"{i+1}. {step}" for i, step in enumerate(state.plan))
         replanner_input = REPLANNER_TEMPLATE.format(
             input=state.input,
-            plan=plan_str,
-            past_steps=past_steps_str,
             project=ctx_to_markdown(ctx),
+            progress=progress_str,
+            plan=plan_str,
         )
         response = await replanner_agent.ainvoke(
             {"messages": [HumanMessage(content=replanner_input)]}

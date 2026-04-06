@@ -10,9 +10,7 @@ from .replan import make_replan_step, should_end
 
 
 def build_plan_execute_graph(ctx: ToolContext):
-    def tags(task: str) -> list[str] | None:
-        if ctx.project_id is None:
-            return None
+    def tags(task: str) -> list[str]:
         return [f"project:{ctx.project_id}", f"task:{task}"]
 
     plan_step = make_plan_step(get_llm(tags("plan")), ctx)
